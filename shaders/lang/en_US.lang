@@ -1,0 +1,434 @@
+# Aurora Fantasy 5.2 - English
+
+# ═══════════════════════════════════════════
+#  Profiles
+# ═══════════════════════════════════════════
+profile.MEDIUM=§aMedium
+profile.HIGH=§6§lHigh
+profile.EXTREME=§c§lExtreme §4§o(No Limits)
+
+profile.comment=§aMedium§r: Smooth and friendly. §6§lHigh§r: Premium quality with SSR, dynamic clouds, AO and volumetric light. §c§lExtreme§r: EVERYTHING maxed — 64-step SSR, DOF, POM, Motion Blur, FXAA, max AO, dense clouds, realistic puddles. Requires a powerful GPU.
+
+# ═══════════════════════════════════════════
+#  Screens
+# ═══════════════════════════════════════════
+screen.SHADOWS_SCREEN=§l⚡ Shadows & Lighting
+screen.SHADOWS_SCREEN.comment=Shadows, ambient occlusion, light rays, and lighting settings.
+
+screen.ATMOSPHERE_SCREEN=§l☁ Sky & Atmosphere
+screen.ATMOSPHERE_SCREEN.comment=Clouds, sky colors, fog, and stars.
+
+screen.WATER_SCREEN=§l💧 Water & Weather
+screen.WATER_SCREEN.comment=Reflections, water, rain puddles, and weather.
+
+screen.EFFECTS_SCREEN=§l✦ Effects
+screen.EFFECTS_SCREEN.comment=Bloom, materials, waving, POM, DOF, motion blur, and antialiasing.
+
+screen.CAMERA_SCREEN=§l📷 Camera & Colors
+screen.CAMERA_SCREEN.comment=Tonemapping, saturation, contrast, brightness, and sharpness.
+
+screen.CUSTOM_COLORS_SCREEN=§l🎨 Custom Colors
+screen.CUSTOM_COLORS_SCREEN.comment=Customize sky, water, and light colors. Set Color Scheme to "Custom" first.
+
+# ═══════════════════════════════════════════
+#  Shadows & Lighting
+# ═══════════════════════════════════════════
+option.SHADOW_CASTING=Shadows
+option.SHADOW_CASTING.comment=Enable real-time shadow rendering.
+
+option.SHADOW_ENTITIES=Entity Shadows
+option.SHADOW_ENTITIES.comment=Shadows from players and mobs. Disabling improves FPS ~30%.
+
+option.SHADOW_QTY_SLIDER=Shadow Resolution
+option.SHADOW_QTY_SLIDER.comment=Shadow map resolution. Higher = sharper shadows, heavier on GPU.
+value.SHADOW_QTY_SLIDER.1=§71
+value.SHADOW_QTY_SLIDER.2=§72
+value.SHADOW_QTY_SLIDER.3=§a3
+value.SHADOW_QTY_SLIDER.4=§e4
+value.SHADOW_QTY_SLIDER.5=§e5
+value.SHADOW_QTY_SLIDER.6=§c6
+
+option.SHADOW_DISTANCE_SLIDER=Shadow Distance
+option.SHADOW_DISTANCE_SLIDER.comment=How far shadows render. Use ~80% of your render distance.
+value.SHADOW_DISTANCE_SLIDER.1=§74 cks
+value.SHADOW_DISTANCE_SLIDER.2=§75 cks
+value.SHADOW_DISTANCE_SLIDER.3=§a6 cks
+value.SHADOW_DISTANCE_SLIDER.4=§a8 cks
+value.SHADOW_DISTANCE_SLIDER.5=§e10 cks
+value.SHADOW_DISTANCE_SLIDER.6=§e12 cks
+value.SHADOW_DISTANCE_SLIDER.7=§c14 cks
+value.SHADOW_DISTANCE_SLIDER.8=§c16 cks
+
+option.SHADOW_TYPE=Shadow Filter
+value.SHADOW_TYPE.0=Hard
+value.SHADOW_TYPE.1=Soft
+
+option.SHADOW_BLUR=Shadow Softness
+suffix.SHADOW_BLUR=x
+
+option.COLORED_SHADOW=Colored Shadows
+option.COLORED_SHADOW.comment=Shadows through stained glass and ice get tinted.
+
+option.sunPathRotation=Sun Angle
+suffix.sunPathRotation=°
+
+option.VOL_LIGHT=Light Rays
+option.VOL_LIGHT.comment=God rays / volumetric light. Depth: simple, works without shadows. Volumetric: accurate, needs shadows.
+value.VOL_LIGHT.0=Off
+value.VOL_LIGHT.1=Depth
+value.VOL_LIGHT.2=Volumetric
+
+option.GODRAY_STEPS=Ray Quality
+value.GODRAY_STEPS.2=§72
+value.GODRAY_STEPS.3=§a3
+value.GODRAY_STEPS.4=§a4
+value.GODRAY_STEPS.5=§e5
+value.GODRAY_STEPS.6=§e6
+value.GODRAY_STEPS.7=§c7
+
+option.AO=Ambient Occlusion
+option.AO.comment=Adds soft shadows in corners and crevices.
+value.AO.0=Off
+value.AO.1=On
+
+option.VANILLA_AO=Vanilla AO
+option.VANILLA_AO.comment=Minecraft's built-in AO. Much faster than shader AO.
+value.VANILLA_AO.0=Off
+value.VANILLA_AO.1=On
+
+option.AO_STRENGTH=AO Strength
+suffix.AO_STRENGTH=x
+
+option.OMNI_MUL=Light Intensity
+suffix.OMNI_MUL=x
+option.OMNI_MUL.comment=Controls shadow darkness and light color strength.
+
+option.BLOCKLIGHT_TEMP=Torch Color
+value.BLOCKLIGHT_TEMP.-1=§6Warm+
+value.BLOCKLIGHT_TEMP.0=§eWarm
+value.BLOCKLIGHT_TEMP.1=§fNeutral
+value.BLOCKLIGHT_TEMP.2=§eYellow
+value.BLOCKLIGHT_TEMP.3=§fPale
+value.BLOCKLIGHT_TEMP.4=§bWhite
+value.BLOCKLIGHT_TEMP.5=§9Cool
+
+option.DYN_HAND_LIGHT=Hand Light
+option.DYN_HAND_LIGHT.comment=Holding a torch lights up nearby blocks.
+
+option.NIGHT_BRIGHT=Night Brightness
+suffix.NIGHT_BRIGHT=x
+
+option.AVOID_DARK_LEVEL=Min Light
+suffix.AVOID_DARK_LEVEL=%
+option.AVOID_DARK_LEVEL.comment=Minimum light level. Higher = brighter caves.
+value.AVOID_DARK_LEVEL.50.0=FULLBRIGHT
+
+# ═══════════════════════════════════════════
+#  Sky & Atmosphere
+# ═══════════════════════════════════════════
+option.COLOR_SCHEME=§lColor Scheme
+option.COLOR_SCHEME.comment=Sky and lighting color theme. Select "Custom" to use the Custom Colors screen.
+value.COLOR_SCHEME.0=Ethereal
+value.COLOR_SCHEME.1=New Shoka
+value.COLOR_SCHEME.2=Shoka
+value.COLOR_SCHEME.3=Legacy
+value.COLOR_SCHEME.4=Captain
+value.COLOR_SCHEME.5=Psychedelic
+value.COLOR_SCHEME.6=Cocoa
+value.COLOR_SCHEME.7=Testigo
+value.COLOR_SCHEME.8=§bRealistic+
+value.COLOR_SCHEME.9=§bRealistic (pol)
+value.COLOR_SCHEME.10=§6Aurora Legacy
+value.COLOR_SCHEME.11=§fVanilla
+value.COLOR_SCHEME.12=§4Cursed
+value.COLOR_SCHEME.99=§eCustom
+
+option.V_CLOUDS=Clouds
+option.V_CLOUDS.comment=Off: No clouds. Vanilla+: Enhanced vanilla. Static: Moving but keep shape. Dynamic: Evolving shapes.
+value.V_CLOUDS.-1=Off
+value.V_CLOUDS.0=Vanilla+
+value.V_CLOUDS.1=Static
+value.V_CLOUDS.2=Dynamic
+
+option.USE_CLOUD_VOL_STYLE=Cloud Shape
+value.USE_CLOUD_VOL_STYLE.-1=Auto
+value.USE_CLOUD_VOL_STYLE.0=Natural
+value.USE_CLOUD_VOL_STYLE.1=Boxy
+
+option.CLOUD_DENSITY=Cloud Density
+suffix.CLOUD_DENSITY=x
+
+option.CLOUD_STEPS_AVG=Cloud Quality
+value.CLOUD_STEPS_AVG.3=§a3
+value.CLOUD_STEPS_AVG.4=§e4
+value.CLOUD_STEPS_AVG.5=§e5
+value.CLOUD_STEPS_AVG.10=§c10
+
+option.CIRRUS=Cirrus Clouds
+option.CIRRUS.comment=Thin high-altitude cloud layer.
+
+option.CIRRUS_STEPS_AVG=Cirrus Quality
+value.CIRRUS_STEPS_AVG.3=§a3
+value.CIRRUS_STEPS_AVG.4=§e4
+value.CIRRUS_STEPS_AVG.5=§c5
+
+option.CLOUD_REFLECTION=Cloud Reflections
+option.CLOUD_REFLECTION.comment=Volumetric clouds reflect on water.
+
+option.END_CLOUDS=End Clouds
+option.END_CLOUDS.comment=Clouds in The End dimension.
+
+option.BIOME_SKY=Biome Sky
+option.BIOME_SKY.comment=Sky color changes per biome.
+
+option.BIOME_FOG=Biome Fog
+option.BIOME_FOG.comment=Fog density changes per biome.
+
+option.FOG_ACTIVE=Fog
+
+option.FOG_ADJUST=Fog Density
+value.FOG_ADJUST.10.0=§7Thin
+value.FOG_ADJUST.8.0=§7Light
+value.FOG_ADJUST.4.0=§aNormal
+value.FOG_ADJUST.2.0=§eDense
+value.FOG_ADJUST.1.5=§cThick
+value.FOG_ADJUST.1.0=§cMax
+
+option.SANDSTORM=Sandstorm
+option.SANDSTORM.comment=Desert sandstorm effect. Needs Biome Fog on.
+
+option.STAR_SLIDER=Stars
+value.STAR_SLIDER.0=Off
+value.STAR_SLIDER.1=§aStandard
+value.STAR_SLIDER.2=§cDetailed
+
+option.STARS_BRIGHTNESS=Star Brightness
+suffix.STARS_BRIGHTNESS=x
+
+option.STARS_COVERAGE=Star Coverage
+suffix.STARS_COVERAGE=x
+
+option.END_STARS=End Stars
+option.END_STARS.comment=Stars in The End dimension.
+
+# ═══════════════════════════════════════════
+#  Water & Weather
+# ═══════════════════════════════════════════
+option.REFLECTION_SLIDER=Reflections
+option.REFLECTION_SLIDER.comment=Off: None. Basic: Flipped image. SSR: Screen-space raytracing.
+value.REFLECTION_SLIDER.0=Off
+value.REFLECTION_SLIDER.1=§aBasic
+value.REFLECTION_SLIDER.2=§eSSR
+
+option.SUN_REFLECTION=Sun Reflection
+value.SUN_REFLECTION.0=Off
+value.SUN_REFLECTION.1=Circle
+value.SUN_REFLECTION.2=Square
+
+option.SSR_MAX_STEPS=SSR Quality
+option.SSR_MAX_STEPS.comment=Raytracing steps. More = sharper reflections.
+value.SSR_MAX_STEPS.4=§74
+value.SSR_MAX_STEPS.8=§a8
+value.SSR_MAX_STEPS.16=§a16
+value.SSR_MAX_STEPS.24=§e24
+value.SSR_MAX_STEPS.32=§e32
+value.SSR_MAX_STEPS.64=§c64
+
+option.SSR_STRENGTH=SSR Strength
+value.SSR_STRENGTH.1=10%
+value.SSR_STRENGTH.5=50%
+value.SSR_STRENGTH.8=80%
+value.SSR_STRENGTH.10=§c100%
+
+option.REFRACTION=Refraction
+option.REFRACTION.comment=Light bending through water.
+value.REFRACTION.0=Off
+value.REFRACTION.1=On
+
+option.USE_WATER_TEXTURE=Water Texture
+value.USE_WATER_TEXTURE.-1=Auto
+value.USE_WATER_TEXTURE.0=Shader
+value.USE_WATER_TEXTURE.1=Resource Pack
+
+option.WATER_ABSORPTION=Water Clarity
+suffix.WATER_ABSORPTION=%
+option.WATER_ABSORPTION.comment=How much light water absorbs. Low = clear, high = murky.
+
+option.WATER_FOG=Water Fog
+suffix.WATER_FOG=x
+
+option.USE_WATER_TURBULENCE=Wave Strength
+value.USE_WATER_TURBULENCE.-1=Auto
+value.USE_WATER_TURBULENCE.0=Flat
+value.USE_WATER_TURBULENCE.1=Mild
+value.USE_WATER_TURBULENCE.2=Normal
+value.USE_WATER_TURBULENCE.3=Strong
+
+option.WATER_FOAM=Shore Foam
+option.WATER_FOAM.comment=White foam at water edges.
+
+option.FOAM_WIDTH=Foam Width
+suffix.FOAM_WIDTH=x
+
+option.RAIN_PUDDLES=Rain Puddles
+option.RAIN_PUDDLES.comment=Reflective puddles during rain.
+
+option.RAIN_RIPPLES=Rain Ripples
+option.RAIN_RIPPLES.comment=Animated ripple circles on puddles.
+
+option.PUDDLE_COVERAGE=Puddle Size
+suffix.PUDDLE_COVERAGE=x
+
+option.PUDDLE_REFLECTIVITY=Puddle Shine
+suffix.PUDDLE_REFLECTIVITY=x
+
+option.WET_SURFACE_DARKEN=Wet Darken
+suffix.WET_SURFACE_DARKEN=x
+
+option.WEATHER_OPACITY=Rain Opacity
+suffix.WEATHER_OPACITY=x
+
+# ═══════════════════════════════════════════
+#  Effects
+# ═══════════════════════════════════════════
+option.BLOOM=Bloom
+option.BLOOM.comment=Glow effect around bright light sources.
+
+option.BLOOM_STRENGTH=Bloom Strength
+suffix.BLOOM_STRENGTH=x
+
+option.MATERIAL_GLOSS=Material Gloss
+option.MATERIAL_GLOSS.comment=Specular highlights on metals and polished surfaces.
+
+option.WAVING=Waving Plants
+value.WAVING.0=Off
+value.WAVING.1=On
+
+option.EMMISIVE_ORE=Glowing Ores
+option.EMMISIVE_ORE.comment=Diamond, gold, iron ores emit soft light.
+
+option.EMMISIVE_MATERIAL=Glowing Blocks
+option.EMMISIVE_MATERIAL.comment=Enchanting table, repeater, etc. emit light.
+
+option.WIND_FORCE=Wind Force
+suffix.WIND_FORCE=x
+
+option.POM=Parallax (POM)
+option.POM.comment=3D depth effect on block surfaces. Needs a resource pack with height maps. Heavy.
+
+option.POM_DEPTH=POM Depth
+suffix.POM_DEPTH=x
+
+option.DOF=Depth of Field
+option.DOF.comment=Background blur when looking at close objects.
+
+option.DOF_STRENGTH=DoF Strength
+suffix.DOF_STRENGTH=%
+
+option.MOTION_BLUR=Motion Blur
+
+option.MOTION_BLUR_STRENGTH=Blur Strength
+suffix.MOTION_BLUR_STRENGTH=x
+
+option.AA_TYPE=Anti-Aliasing
+option.AA_TYPE.comment=Smart TAA recommended. TAA alone can look blurry.
+value.AA_TYPE.0=Off
+value.AA_TYPE.1=Denoise
+value.AA_TYPE.2=TAA
+value.AA_TYPE.3=§bSmart TAA
+
+option.FXAA=FXAA
+option.FXAA.comment=Extra edge smoothing. Best with Smart TAA.
+
+# ═══════════════════════════════════════════
+#  Camera & Colors
+# ═══════════════════════════════════════════
+option.STYLE=§lStyle
+value.STYLE.1=§6Enhanced
+value.STYLE.2=§bVanilla
+option.STYLE.comment=Enhanced: Better visuals and lighting. Vanilla: Original Minecraft look.
+
+option.TONEMAPPING=Tonemapping
+option.TONEMAPPING.comment=Color mapping algorithm. Affects the overall look.
+value.TONEMAPPING.0=Legacy
+value.TONEMAPPING.1=Lottes
+value.TONEMAPPING.2=ACES
+value.TONEMAPPING.3=Psychedelic
+
+option.SATURATION=Saturation
+suffix.SATURATION=x
+
+option.CONTRAST=Contrast
+suffix.CONTRAST=x
+
+option.BRIGHTNESS=Brightness
+suffix.BRIGHTNESS=x
+
+option.GAMMA=Gamma
+suffix.GAMMA=x
+
+option.VIBRANCE=Vibrance
+suffix.VIBRANCE=x
+option.VIBRANCE.comment=Boosts dull colors without oversaturating bright ones.
+
+option.EXPOSURE=Exposure
+suffix.EXPOSURE=x
+
+option.SHARP_FORCE=Sharpness
+suffix.SHARP_FORCE=x
+
+# ═══════════════════════════════════════════
+#  Custom Colors
+# ═══════════════════════════════════════════
+screen.CUSTOM_COLORS_DAY=☀ Day
+screen.CUSTOM_COLORS_SUNSET=🌅 Sunset
+screen.CUSTOM_COLORS_NIGHT=🌙 Night
+screen.CUSTOM_COLORS_WATER=💧 Water
+
+option.NIGHT_BRIGHT_RANGE=Moon Phase Effect
+option.NIGHT_BRIGHT_RANGE.comment=How much moon phase affects night brightness.
+suffix.NIGHT_BRIGHT_RANGE=x
+
+option.RED=Red
+option.GREEN=Green
+option.BLUE=Blue
+suffix.RED=x
+suffix.GREEN=x
+suffix.BLUE=x
+
+option.LIGHT_DAY_COLOR_R=Light R
+option.LIGHT_DAY_COLOR_G=Light G
+option.LIGHT_DAY_COLOR_B=Light B
+option.ZENITH_DAY_COLOR_R=Zenith R
+option.ZENITH_DAY_COLOR_G=Zenith G
+option.ZENITH_DAY_COLOR_B=Zenith B
+option.HORIZON_DAY_COLOR_R=Horizon R
+option.HORIZON_DAY_COLOR_G=Horizon G
+option.HORIZON_DAY_COLOR_B=Horizon B
+option.LIGHT_SUNSET_COLOR_R=Light R
+option.LIGHT_SUNSET_COLOR_G=Light G
+option.LIGHT_SUNSET_COLOR_B=Light B
+option.ZENITH_SUNSET_COLOR_R=Zenith R
+option.ZENITH_SUNSET_COLOR_G=Zenith G
+option.ZENITH_SUNSET_COLOR_B=Zenith B
+option.HORIZON_SUNSET_COLOR_R=Horizon R
+option.HORIZON_SUNSET_COLOR_G=Horizon G
+option.HORIZON_SUNSET_COLOR_B=Horizon B
+option.LIGHT_NIGHT_COLOR_R=Light R
+option.LIGHT_NIGHT_COLOR_G=Light G
+option.LIGHT_NIGHT_COLOR_B=Light B
+option.ZENITH_NIGHT_COLOR_R=Zenith R
+option.ZENITH_NIGHT_COLOR_G=Zenith G
+option.ZENITH_NIGHT_COLOR_B=Zenith B
+option.HORIZON_NIGHT_COLOR_R=Horizon R
+option.HORIZON_NIGHT_COLOR_G=Horizon G
+option.HORIZON_NIGHT_COLOR_B=Horizon B
+option.WATER_COLOR_R=Water R
+option.WATER_COLOR_G=Water G
+option.WATER_COLOR_B=Water B
+
+# ═══════════════════════════════════════════
+#  Distant Rendering Mod Support
+# ═══════════════════════════════════════════
+option.DISTANT_RENDER_MOD=§b⚙ Distant Render Mod
+option.DISTANT_RENDER_MOD.comment=Enable if you use distant rendering mods like §bDistant Horizons§r. Fixes aurora/twilight rendering to work properly with extended render distance. §cKeep OFF for vanilla.

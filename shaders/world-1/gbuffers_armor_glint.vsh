@@ -1,0 +1,14 @@
+#version 120
+/* Aurora Fantasy - gbuffers_armor_glint.vsh
+Render: Glow objects
+
+in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
+*/
+
+#define NETHER
+#define GBUFFER_ARMOR_GLINT
+#define ENTITY_GLINT
+#define SHADER_BASIC
+#define NO_SHADOWS
+
+#include "/common/glint_blocks_vertex.glsl"
