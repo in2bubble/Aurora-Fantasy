@@ -89,8 +89,9 @@ Copy the shader folder into `.minecraft/shaderpacks`, then select it in-game.
 
 ## Credits
 
-- **in2bubble** — Modified version
-- **KDXavier** — Original MakeUp shader
+* **in2bubble** — Modified version
+* **KDXavier** — Original MakeUp shader
+* **Entokito** — Additional shader code (used under LGPL v3.0)
 
 ---
 
