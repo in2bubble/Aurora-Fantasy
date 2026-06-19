@@ -342,24 +342,9 @@ vec4 cristal_reflection_calc(vec3 fragpos, vec3 normal, inout float infinite, fl
         }
     #endif
     
-    #ifdef FSR
-        float pos_y_normalized = pos.y / RENDER_SCALE;
-
-        float border =
-            clamp((1.0 - (max(0.0, abs(pos_y_normalized - 0.5)) * 2.0)), 0.0, 1.0);
-
-        border = clamp(border - square_pow(pos_y_normalized), 0.0, 1.0);
-
-        pos.x = abs(pos.x);
-
-        if (pos.x > RENDER_SCALE) {
-            pos.x = RENDER_SCALE - (pos.x - RENDER_SCALE);
-        }
-    #else
         float border_x = max(-fourth_pow(abs(2.0 * pos.x - 1.0)) + 1.0, 0.0);
         float border_y = max(-fourth_pow(abs(2.0 * pos.y - 1.0)) + 1.0, 0.0);
         float border = min(border_x, border_y);
-    #endif
     
     return vec4(texture2D(gaux1, pos.xy).rgb, border);
 }

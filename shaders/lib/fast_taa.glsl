@@ -10,11 +10,7 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
     vec3 fast_taa(vec3 block_color, vec2 texcoord_past) {
         vec3 current = block_color;
 
-        #ifndef FSR
-            vec3 previous = texture2DLod(colortex3, texcoord_past, 0.0).rgb;
-        #else
-            vec3 previous = texture2DLod(colortex3, texcoord, 0.0).rgb;
-        #endif
+        vec3 previous = texture2DLod(colortex3, texcoord_past, 0.0).rgb;
 
         vec2 px = vec2(pixel_size_x, pixel_size_y);
 

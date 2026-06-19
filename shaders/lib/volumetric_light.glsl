@@ -2,7 +2,7 @@
 Volumetric light - MakeUp implementation
 */
 
-#if VOL_LIGHT == 2 && !defined FSR
+#if VOL_LIGHT == 2
 
     #define diagonal3(m) vec3((m)[0].x, (m)[1].y, m[2].z)
 
@@ -110,7 +110,7 @@ Volumetric light - MakeUp implementation
         
     #endif
 
-#elif (VOL_LIGHT == 2 && defined FSR) || VOL_LIGHT == 1
+#elif VOL_LIGHT == 1
 
     float ss_godrays(float dither) {
         if(fragment_cull() || any(greaterThan(texcoord, vec2(RENDER_SCALE))) || any(lessThan(texcoord, vec2(0.0)))) {

@@ -23,8 +23,7 @@ uniform float nightVision;
 uniform float rainStrength;
 uniform float wetness;
 uniform float light_mix;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform sampler2D gaux4;
 uniform mat4 gbufferProjectionInverse;
 uniform vec3 sunPosition;
@@ -230,11 +229,7 @@ void main() {
             discard;
         }
     #else
-        #if RENDER_SCALE_INT != 100 && defined FSR
-            vec4 block_color = texture2D(tex, texcoord,lod );
-        #else
-            vec4 block_color = texture2D(tex, texcoord);
-        #endif
+        vec4 block_color = texture2D(tex, texcoord);
     #endif
     
     vec4 pure_block_color = block_color;

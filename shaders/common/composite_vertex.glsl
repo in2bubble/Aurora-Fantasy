@@ -35,12 +35,13 @@ varying float exposure;  // Flat
 /* Utility functions */
 
 #include "/lib/luma.glsl"
+#include "/lib/fullscreen_vertex.glsl"
 
 // MAIN FUNCTION ------------------
 
 void main() {
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     texcoord = gl_MultiTexCoord0.xy;
+    gl_Position = fullscreen_position(texcoord);
 
     vec2 eye_bright_smooth = vec2(eyeBrightnessSmooth);
 

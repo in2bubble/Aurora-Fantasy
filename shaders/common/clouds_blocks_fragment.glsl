@@ -8,6 +8,7 @@ uniform float blindness;
 uniform float day_moment;
 uniform float day_mixer;
 uniform float night_mixer;
+uniform vec3 skyColor;
 uniform float viewWidth;
 uniform float viewHeight;
 
@@ -17,8 +18,7 @@ uniform float viewHeight;
 #endif
 
 #if V_CLOUDS == 0 || defined UNKNOWN_DIM
-    uniform float pixel_size_x;
-    uniform float pixel_size_y;
+    #include "/lib/screen_size.glsl"
     uniform sampler2D gaux4;
 #endif
 

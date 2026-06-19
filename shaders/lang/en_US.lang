@@ -1,4 +1,4 @@
-# Aurora Fantasy 5.2 - English
+# Aurora Fantasy 5.3 - English
 
 # ═══════════════════════════════════════════
 #  Profiles
@@ -319,11 +319,10 @@ option.POM.comment=3D depth effect on block surfaces. Needs a resource pack with
 option.POM_DEPTH=POM Depth
 suffix.POM_DEPTH=x
 
-option.DOF=Depth of Field
-option.DOF.comment=Background blur when looking at close objects.
-
-option.DOF_STRENGTH=DoF Strength
+option.DOF_STRENGTH=Depth of Field (DoF)
+option.DOF_STRENGTH.comment=Adds background blur when focusing on close objects. A value of 0% disables this feature.
 suffix.DOF_STRENGTH=%
+value.DOF_STRENGTH.0=Off
 
 option.MOTION_BLUR=Motion Blur
 
@@ -432,3 +431,4 @@ option.WATER_COLOR_B=Water B
 # ═══════════════════════════════════════════
 option.DISTANT_RENDER_MOD=§b⚙ Distant Render Mod
 option.DISTANT_RENDER_MOD.comment=Enable if you use distant rendering mods like §bDistant Horizons§r. Fixes aurora/twilight rendering to work properly with extended render distance. §cKeep OFF for vanilla.
+

@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.2 - end_portal.glsl #include "/lib/end_portal.glsl"
+Aurora Fantasy 5.3 - end_portal.glsl #include "/lib/end_portal.glsl"
 End portal render. - Renderização do portal do End. */
 
 #include "/lib/render_aux.glsl"

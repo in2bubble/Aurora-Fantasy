@@ -45,12 +45,13 @@ varying vec3 direct_light_strength;
 #include "/lib/oscilator_utils.glsl"
 #include "/lib/biome_sky.glsl"
 #include "/lib/downscale.glsl"
+#include "/lib/fullscreen_vertex.glsl"
 
 // MAIN FUNCTION ------------------
 
 void main() {
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     texcoord = gl_MultiTexCoord0.xy;
+    gl_Position = fullscreen_position(texcoord);
     resize_vertex(gl_Position);
 
     up_vec = normalize(gbufferModelView[1].xyz);

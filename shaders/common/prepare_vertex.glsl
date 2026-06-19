@@ -36,11 +36,12 @@ varying vec3 pure_low_sky_color;
 
 #include "/lib/luma.glsl"
 #include "/lib/downscale.glsl"
+#include "/lib/fullscreen_vertex.glsl"
 
 // MAIN FUNCTION ------------------
 
 void main() {
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    gl_Position = fullscreen_position(gl_MultiTexCoord0.xy);
     resize_vertex(gl_Position);
 
     #include "/src/hi_sky.glsl"

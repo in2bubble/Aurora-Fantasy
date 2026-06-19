@@ -1,4 +1,4 @@
-// Aurora Fantasy 5.2 - Prepare_fragment.glsl
+// Aurora Fantasy 5.3 - Prepare_fragment.glsl
 // Sky colors.
 
 #include "/lib/config.glsl"
@@ -17,8 +17,7 @@
 /* Uniforms */
 
 uniform mat4 gbufferProjectionInverse;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform float rainStrength;
 uniform float wetness;
 uniform vec3 sunPosition;

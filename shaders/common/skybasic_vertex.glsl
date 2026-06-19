@@ -71,20 +71,24 @@ void main() {
     #if !defined THE_END
         float color_distance = dot(gl_Color.rgb - skyColor, gl_Color.rgb - skyColor);
 
+        float sky_dark_gate = 1.0;
+        #if MC_VERSION >= 11604
+            sky_dark_gate = float(max(max(skyColor.r, skyColor.g), skyColor.b) < 0.18);
+        #endif
+
         star_data = vec4(
             float(gl_Color.r == gl_Color.g &&
             gl_Color.g == gl_Color.b &&
             gl_Color.r > 0.0 &&
-            color_distance > 0.0) * gl_Color.r // <- Verifying color distance is much faster than a mix with texture2D. Discards gray skies.
+            color_distance > 0.0) * sky_dark_gate * gl_Color.r // MC 26.2 can tint sky geometry gray in daylight; only treat gray vertices as stars when the sky is dark.
         );
     #else
         star_data = vec4(0.0);
     #endif
     position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
+    up_vec = normalize(gbufferModelView[1].xyz);
 
     #if MC_VERSION < 11604
-        up_vec = normalize(gbufferModelView[1].xyz);
-
         #include "/src/hi_sky.glsl"
         #include "/src/mid_sky.glsl"
         #include "/src/low_sky.glsl"

@@ -15,8 +15,7 @@
 uniform sampler2D tex;
 uniform float viewWidth;
 uniform float viewHeight;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform float near;
 uniform float far;
 uniform sampler2D gaux1;

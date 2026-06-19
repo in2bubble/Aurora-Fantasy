@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.2 - get_sky.glsl
+Aurora Fantasy 5.3 - get_sky.glsl
 Sky render. - Renderização do céu. 
 */
 

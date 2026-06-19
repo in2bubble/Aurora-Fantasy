@@ -28,15 +28,19 @@ float fog_adj2 = mix(fog_adj, clamp(fog_adj * 1.75, 0.0, 2.0 - final_sun_factor)
     #endif
 #else
     #ifdef FOG_ACTIVE  // Fog active
+        vec3 gaux4_fog_sample = texture2D(gaux4, gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y)).rgb;
+        float gaux4_fog_valid = (max(max(gaux4_fog_sample.r, gaux4_fog_sample.g), gaux4_fog_sample.b) > 0.002 || day_mixer < 0.05) ? 1.0 : 0.0;
+        vec3 safe_fog_color = mix(skyColor, gaux4_fog_sample, gaux4_fog_valid) * fog_correction;
+
         #if MC_VERSION >= 11900
             vec3 fog_texture;
             if(darknessFactor > .01) {
                 fog_texture = vec3(0.0);
             } else {
-                fog_texture = texture2D(gaux4, gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y)).rgb * fog_correction;
+                fog_texture = safe_fog_color;
             }
         #else
-            vec3 fog_texture = texture2D(gaux4, gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y)).rgb * fog_correction;
+            vec3 fog_texture = safe_fog_color;
         #endif
         #if defined GBUFFER_ENTITIES
             if(isEyeInWater == 0 && entityId != 10101 && FOG_ADJUST < 15.0) {  // In the air

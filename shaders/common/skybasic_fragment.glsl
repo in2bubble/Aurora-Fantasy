@@ -14,27 +14,20 @@
 /* Uniforms */
 
 uniform sampler2D gaux4;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform float rainStrength;
 uniform mat4 gbufferProjectionInverse;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform int frameCounter;
 uniform float frameTime;
+uniform vec3 sunPosition;
+uniform vec4 lightningBoltPosition;
 #if STAR_SLIDER == 2 || defined THE_END || COLOR_SCHEME == 8 || COLOR_SCHEME == 11 || STAR_SLIDER >= 1
     uniform float frameTimeCounter;
     uniform vec3 cameraPosition;
     uniform mat4 gbufferModelViewInverse;
     uniform float sunAngle;
-#endif
-
-#if COLOR_SCHEME == 8 || COLOR_SCHEME == 11
-    uniform vec3 sunPosition;
-#endif
-
-#if MC_VERSION < 11604
-    uniform vec4 lightningBoltPosition;
 #endif
 
 /* Ins / Outs */
@@ -116,8 +109,17 @@ void main() {
         #if MC_VERSION < 11604
             #include "/src/get_sky.glsl"
         #else
-            vec4 background_color = texture2DLod(gaux4, gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y), 0);
-            vec3 sky_color = vec3(0.0);
+            vec3 hi_sky_color;
+            vec3 mid_sky_color;
+            vec3 low_sky_color;
+            vec3 pure_hi_sky_color;
+            vec3 pure_mid_sky_color;
+            vec3 pure_low_sky_color;
+
+            #include "/src/hi_sky.glsl"
+            #include "/src/mid_sky.glsl"
+            #include "/src/low_sky.glsl"
+            #include "/src/get_sky.glsl"
         #endif
 
         #if STAR_SLIDER >= 1
@@ -144,17 +146,8 @@ void main() {
 
         // --- AURORA (Northern Lights) ---
         #if COLOR_SCHEME == 8 || COLOR_SCHEME == 11
-            #ifdef DISTANT_RENDER_MOD
-                #if MC_VERSION < 11604
-                    // For older MC, aurora must be added here (sky colors not from gaux4)
-                    vec3 aurora = getAurora(normalize(position.xyz), sunPosition);
-                    block_color.rgb += aurora;
-                #endif
-                // For MC >= 1.16.4, aurora is already in gaux4 background from prepare pass
-            #else
-                vec3 aurora = getAurora(normalize(position.xyz), sunPosition);
-                block_color.rgb += aurora;
-            #endif
+            vec3 aurora = getAurora(normalize(position.xyz), sunPosition);
+            block_color.rgb += aurora;
         #endif
 
         #if MC_VERSION >= 11604

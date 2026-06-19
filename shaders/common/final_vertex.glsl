@@ -20,10 +20,11 @@ varying vec2 texcoord;
 varying float exposure;
 
 #include "/lib/luma.glsl"
+#include "/lib/fullscreen_vertex.glsl"
 
 void main() {
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     texcoord = gl_MultiTexCoord0.xy;
+    gl_Position = fullscreen_position(texcoord);
 
     exposure = texture2D(gaux3, vec2(0.5)).r;
 }

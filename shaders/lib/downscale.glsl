@@ -3,12 +3,12 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.2 - downscale.glsl #include "/lib/downscale.glsl"
+Aurora Fantasy 5.3 - downscale.glsl #include "/lib/downscale.glsl"
 Downscale functions. - Funções de downscale.*/ 
 
 #define viewSize vec2(viewWidth, viewHeight)
 
-#if RENDER_SCALE_INT == 100 || !defined FSR && !defined PS1_LIKE
+#if !defined PS1_LIKE
     void resize_vertex(inout vec4 glPosition) {
     }
 #else
@@ -18,7 +18,7 @@ Downscale functions. - Funções de downscale.*/
     }
 #endif
 
-#if defined FRAGMENT && RENDER_SCALE_INT == 100 || !defined FSR && !defined PS1_LIKE
+#if defined FRAGMENT && !defined PS1_LIKE
     bool fragment_cull() {
         return false;
     }

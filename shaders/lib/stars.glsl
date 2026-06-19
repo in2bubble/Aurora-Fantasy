@@ -3,23 +3,19 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.2 - stars.glsl
+Aurora Fantasy 5.3 - stars.glsl
 Stars render fixed in world space. - Renderização de estrelas fixas no espaço do mundo. 
-
-Based on https://www.shadertoy.com/view/Md2SR3
 */
 
 #include "/lib/render_aux.glsl"
 
-// Cinematic Stars - Final Polish
+// Cinematic Stars - Custom Procedural Star Field
 
 float star_hash(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-// Standard Star Layer
+// Procedural Star Layer
 float StarLayer(vec2 uv, float scale, float density, float flickerSpd) {
     vec2 p = uv * scale;
     vec2 id = floor(p);
@@ -28,11 +24,15 @@ float StarLayer(vec2 uv, float scale, float density, float flickerSpd) {
     float rnd = star_hash(id);
     if (rnd < (1.0 - density)) return 0.0;
     
-    // Breathing Animation
-    float twinkle = 0.7 + 0.3 * sin(frameTimeCounter * flickerSpd + rnd * 10.0);
+    // Twinkling animation using frameTimeCounter
+    float twinkle = 0.6 + 0.4 * sin(frameTimeCounter * flickerSpd + rnd * 6.283);
     
-    float d = length(sub);
-    float glow = 0.02 / (d*d + 0.02);
+    // Organic offset using deterministic hashes to scatter the stars naturally
+    vec2 offset = vec2(star_hash(id + 1.0), star_hash(id + 2.0)) - 0.5;
+    float d = length(sub - offset * 0.8);
+    
+    // Smooth falloff for soft star glow
+    float glow = 0.003 / (d * d + 0.001);
     
     return glow * twinkle * rnd;
 }

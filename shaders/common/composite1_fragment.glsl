@@ -24,8 +24,7 @@ uniform int frameCounter;
 #endif
 
 #if defined DOF || defined MOTION_BLUR
-    uniform float pixel_size_x;
-    uniform float pixel_size_y;
+    #include "/lib/screen_size.glsl"
 #endif
 
 #if AA_TYPE > 0 || defined MOTION_BLUR
@@ -113,7 +112,7 @@ void main() {
     #endif
     
     #ifdef DOF
-        block_color.rgb = noised_blur(block_color, colortex1, texcoord, DOF_STRENGTH, dither);
+        block_color.rgb = noised_blur(block_color, colortex1, texcoord, float(DOF_STRENGTH) * 0.01, dither);
     #endif
 
     #ifdef BLOOM

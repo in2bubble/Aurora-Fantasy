@@ -20,8 +20,7 @@ uniform int frameCounter;
 
 #if AA_TYPE > 0
     uniform sampler2D colortex3;  // TAA past averages
-    uniform float pixel_size_x;
-    uniform float pixel_size_y;
+    #include "/lib/screen_size.glsl"
     uniform mat4 gbufferProjectionInverse;
     uniform mat4 gbufferProjection;
     uniform mat4 gbufferModelViewInverse;

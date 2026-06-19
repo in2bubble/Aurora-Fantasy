@@ -7,8 +7,7 @@ uniform float nightVision;
 uniform float rainStrength;
 uniform float wetness;
 uniform vec3 fogColor;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform sampler2D gaux4;
 uniform float dhNearPlane;
 uniform float dhFarPlane;

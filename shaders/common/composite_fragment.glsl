@@ -51,8 +51,7 @@ uniform int frameCounter;
     uniform mat4 gbufferProjectionInverse;
     uniform mat4 gbufferModelView;
     uniform vec3 cameraPosition;
-    uniform float pixel_size_x;
-    uniform float pixel_size_y;
+    #include "/lib/screen_size.glsl"
 #endif
 
 /* Ins / Outs */

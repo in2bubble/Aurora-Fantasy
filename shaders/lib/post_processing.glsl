@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.2 - post_processing.glsl #include "/lib/post_processing.glsl"
+Aurora Fantasy 5.3 - post_processing.glsl #include "/lib/post_processing.glsl"
 Utilities, effects and fake effects. - Utilidades, efeitos e efeitos falsos. */
 
 
@@ -34,7 +34,7 @@ Utilities, effects and fake effects. - Utilidades, efeitos e efeitos falsos. */
     } // Film grain
 #endif
 
-#if AA_TYPE == 3 || defined FSR
+#if AA_TYPE == 3
     vec3 sharpen_cas(sampler2D image, vec3 block_color, vec2 coords, float radius, float force) {
         vec2 px = vec2(1.0 / viewWidth, 1.0 / viewHeight) * radius * clamp(viewHeight / 1080, 1.0, 2.0);
 

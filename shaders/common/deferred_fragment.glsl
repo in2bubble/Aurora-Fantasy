@@ -48,8 +48,7 @@ uniform float viewHeight;
 
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferProjectionInverse;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform float frameTime;
 
 #if AO == 1 || (V_CLOUDS > 0 && !defined UNKNOWN_DIM)

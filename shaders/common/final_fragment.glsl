@@ -144,8 +144,7 @@ uniform float day_mixer;
 uniform float night_mixer;
 uniform float near;
 uniform float far;
-uniform float pixel_size_x;
-uniform float pixel_size_y;
+#include "/lib/screen_size.glsl"
 uniform sampler2D depthtex1;
 uniform float frameTime;
 
@@ -195,27 +194,12 @@ void main() {
     #else
        vec3 block_color = texture2DLod(colortex1, pixelUV, 0.0).rgb;
 
-       #if AA_TYPE == 3 && !defined FSR && !defined PS1_LIKE
+       #if AA_TYPE == 3 && !defined PS1_LIKE
             #ifdef FXAA
                block_color = fxaa311(block_color, 3, pixelUV);
             #endif
 
             block_color = sharpen(colortex1, block_color, pixelUV);
-        #elif AA_TYPE == 3 && defined FSR
-            /* FSR UPSCALE RENDER STAGES:
-            1. Vertices are "smashed" on left inferior quadrant based on RENDER_SCALE.
-            2. Pixels out of that quadrant are discarded, improving performance.
-            3. Anti-ghost TAA is aplied on composite2, and result will be sent to composite3.
-            4. Low-Resolution image will be upscaled with AMD FSR to fill screen on composite3 and image is sent to final.
-            5. FXAA is aplied.
-            6. Unsharp-Mask is aplied.
-            7. Image is sent to post effects (saturation, constrast, etc.) then, to screen.            
-            */
-            #if defined FXAA
-                block_color = fxaa311(block_color, 5, pixelUV);
-            #endif
-            
-            block_color = sharpen_cas(colortex1, block_color, pixelUV, RENDER_SCALE, SHARP_FORCE / RENDER_SCALE);
         #endif
     #endif
 
