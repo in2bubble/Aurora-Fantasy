@@ -24,9 +24,17 @@ A fantasy-themed Minecraft shader pack based on MakeUp by KDXavier.
 
 ## 📜 Credits & Licensing
 
-- **in2bubble** — Shader modifications & updates
-- **KDXavier** — Original MakeUp shader creator
-- **Entokito** — Additional shader code (used under LGPL v3.0)
-- **Simon Rodriguez** — FXAA 3.11 algorithm implementation
+**[KDXavier](https://modrinth.com/user/KDXavier)**: Original Creator of [MakeUp - Ultra Fast](https://modrinth.com/shader/makeup-ultra-fast-shaders) shader
 
-**License:** GNU Lesser General Public License v3.0 (LGPL v3.0)
+
+[in2bubble](https://www.curseforge.com/members/in2bubble/projects): Shader Modifications for [Aurora Fantasy](https://www.curseforge.com/minecraft/shaders/aurora-fantasy)
+
+[Entokito](https://modrinth.com/user/Entokito): Additional shader code (used under LGPL v3.0)
+
+**[Simon Rodriguez](https://github.com/kosua20)**: FXAA 3.11 anti-aliasing algorithm
+
+**License**: GNU Lesser General Public License v3.0 (LGPL v3.0)
+
+**Original GitHub (Unmodified Fork)**: [MakeUpUltraFast](https://github.com/in2bubble/MakeUpUltraFast)
+
+**Support & Issues**: Please report any issues or leave your feedback directly in the CurseForge [Comments Section.](https://www.curseforge.com/minecraft/shaders/aurora-fantasy/comments)
