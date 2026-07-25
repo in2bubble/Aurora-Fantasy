@@ -66,9 +66,9 @@ vec3 get_end_cloud(vec3 view_vector, vec3 block_color, float bright, float dithe
                 // Cerca del borde de la nube (desenfoque)
                 float distance_aux = min(abs(intersection_pos.y - surface_inf), abs(intersection_pos.y - surface_sup));
                 if (distance_aux < dist_aux_coeff_blur) {
-                    // El cálculo original se simplifica a esto, que es más rápido.
                     float blur_factor = 1.0 - (distance_aux / dist_aux_coeff_blur);
-                    current_opacity = min(blur_factor * increment_dist, cloud_thickness);
+                    float effective_step = min(increment_dist, dist_aux_coeff_blur);
+                    current_opacity = min(blur_factor * effective_step, cloud_thickness);
                 }
             }
             

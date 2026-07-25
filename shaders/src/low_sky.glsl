@@ -37,8 +37,16 @@
             );
         #endif
 
-        low_sky_color = rgb_to_xyz(low_sky_color_rgb);
     #endif
+
+    float rainy_night_low = rainStrength * day_blend_float(0.0, 0.0, 1.0);
+    vec3 rainy_night_low_floor = vec3(0.052, 0.074, 0.108);
+    low_sky_color_rgb = mix(
+        low_sky_color_rgb,
+        max(low_sky_color_rgb, rainy_night_low_floor),
+        rainy_night_low * 0.88
+    );
+    low_sky_color = rgb_to_xyz(low_sky_color_rgb);
 #endif
 
 vec3 pure_low_sky_color_rgb = day_blend(
@@ -51,6 +59,13 @@ vec3 pure_low_sky_color_rgb = day_blend(
         pure_low_sky_color_rgb,
         HORIZON_SKY_RAIN_COLOR * luma(pure_low_sky_color_rgb) * day_blend_float(1.0, 1.0, 1.5),
         (rainStrength - 0.05)
+    );
+
+    float pure_rainy_night_low = rainStrength * day_blend_float(0.0, 0.0, 1.0);
+    pure_low_sky_color_rgb = mix(
+        pure_low_sky_color_rgb,
+        max(pure_low_sky_color_rgb, vec3(0.052, 0.074, 0.108)),
+        pure_rainy_night_low * 0.88
     );
 
     pure_low_sky_color = rgb_to_xyz(pure_low_sky_color_rgb);

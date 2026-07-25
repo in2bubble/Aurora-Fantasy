@@ -7,15 +7,12 @@ uniform float nightVision;
 uniform float rainStrength;
 uniform float wetness;
 uniform vec3 fogColor;
-#include "/lib/screen_size.glsl"
 uniform sampler2D gaux4;
 uniform float dhNearPlane;
 uniform float dhFarPlane;
 uniform float far;
 uniform vec3 cameraPosition;
 uniform int dhRenderDistance;
-uniform float viewWidth;
-uniform float viewHeight;
 
 /* Ins / Outs */
 

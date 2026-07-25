@@ -1,63 +1,32 @@
-# ✨ Aurora Fantasy 5.3 (AF12)
+# ✨ Aurora Fantasy 5.4
 
-A fantasy-themed shader pack for Minecraft Java Edition, based on the open-source MakeUp shader by KDXavier.
-
----
-
-## What's New in 5.3
-
-- Fixed compatibility issues with Minecraft 26.2.
-- Improved Depth of Field to be more practical, easier to use, and visually better.
+A fantasy-themed Minecraft shader pack based on MakeUp by KDXavier.
 
 ---
 
-## Features
+## 🚀 What's New in 5.4
 
-- ☀️ Shadows with colored glass support
-- ☁️ Volumetric clouds with cirrus layer
-- 🌌 Aurora borealis
-- 🌊 Water with waves, foam, and reflections
-- 🌧️ Rain puddles with ripple animation
-- ⭐ Animated stars
-- 💎 Glowing ores
-- 🌸 Bloom
-- 🍃 Wind-animated plants
-- 🌫️ Biome fog and snow fog
-- 🎥 Motion blur
-- 🌈 13+ color schemes
-- 🌍 Overworld, Nether, and The End support
+### 🐛 Bug Fixes & Compatibility (Minecraft 26.2)
+- **Player Underwater Visibility:** Fixed a bug where players were invisible underwater when viewed by other players in Minecraft 26.2.
+- **Distant Horizons in The End:** Fixed rendering glitches when using the Distant Horizons mod in The End dimension.
+- **Night & Rain Clarity:** Fixed visibility and brightness issues during rainy nights.
+- **Aurora Rain Fix:** Fixed a bug where the Aurora sky effect stayed visible during rain at night.
 
----
-
-## Graphics Profiles
-
-- **EXTREME:** Maximum visual quality for powerful GPUs.
-- **HIGH:** Strong visuals with good performance.
-- **MEDIUM:** Balanced visuals for mid-range GPUs.
+### 🌟 Features & Improvements
+- **Glowing Night Fireflies:** Added magical fireflies that light up the environment at night (includes an option to turn them off in settings).
+- **Redesigned Rain Puddles:** Completely remade puddle visuals with better quality and a toggle option to turn them off completely.
+- **Enhanced Rain Ambiance:** Improved rain droplets and overall atmospheric visuals during day and night rain.
+- **New Sun & Moon:** Updated sun and moon designs for a much better fantasy look.
+- **Simplified Profiles:** Streamlined graphics settings into two main profiles: **Balanced** and **Extreme**.
+- **General Tweaks:** Various performance optimizations and small bug fixes.
 
 ---
 
-## Requirements
+## 📜 Credits & Licensing
 
-- Minecraft Java Edition
-- OptiFine or Iris Shaders
-
----
-
-## Installation
-
-Copy the shader folder into `.minecraft/shaderpacks`, then select it in-game.
-
----
-
-## Credits
-
-- **in2bubble** — Modified version
-- **KDXavier** — Original MakeUp shader
+- **in2bubble** — Shader modifications & updates
+- **KDXavier** — Original MakeUp shader creator
 - **Entokito** — Additional shader code (used under LGPL v3.0)
+- **Simon Rodriguez** — FXAA 3.11 algorithm implementation
 
----
-
-## License
-
-GNU Lesser General Public License v3.0
+**License:** GNU Lesser General Public License v3.0 (LGPL v3.0)

@@ -13,18 +13,10 @@
 uniform sampler2D colortex1;
 uniform sampler2D gaux1;
 uniform float inv_aspect_ratio;
-uniform float frameTime;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
 
 #ifdef DOF
     uniform float centerDepthSmooth;
     uniform float fov_y_inv;
-#endif
-
-#if defined DOF || defined MOTION_BLUR
-    #include "/lib/screen_size.glsl"
 #endif
 
 #if AA_TYPE > 0 || defined MOTION_BLUR
@@ -47,7 +39,6 @@ varying vec2 texcoord;
 #define FRAGMENT
 #include "/lib/downscale.glsl"
 
-#include "/lib/fps_correction.glsl"
 #include "/lib/bloom.glsl"
 
 #if defined BLOOM || defined DOF || defined MOTION_BLUR

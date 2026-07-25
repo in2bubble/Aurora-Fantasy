@@ -22,8 +22,6 @@ uniform float blindness;
 uniform float rainStrength;
 uniform float wetness;
 uniform sampler2D gaux3;
-uniform float viewWidth;
-uniform float viewHeight;
 
 #if V_CLOUDS > 0
     uniform sampler2D gaux2;
@@ -48,13 +46,9 @@ uniform float viewHeight;
 
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferProjectionInverse;
-#include "/lib/screen_size.glsl"
-uniform float frameTime;
 
 #if AO == 1 || (V_CLOUDS > 0 && !defined UNKNOWN_DIM)
     uniform mat4 gbufferProjection;
-    uniform float frameTimeCounter;
-    uniform int frameCounter;
 #endif
 /* Ins / Outs */
 
@@ -78,7 +72,6 @@ varying vec3 direct_light_strength;
 
 #include "/lib/depth.glsl"
 #include "/lib/luma.glsl"
-#include "/lib/fps_correction.glsl"
 
 #ifdef DISTANT_HORIZONS
     #include "/lib/depth_dh.glsl"
@@ -134,7 +127,7 @@ void main() {
     #if AO == 1 || (V_CLOUDS > 0 && !defined UNKNOWN_DIM)
         #if AA_TYPE > 0
             #if MC_VERSION >= 11300
-                float dither = shifted_eclectic_r_dither(gl_FragCoord.xy);
+                float dither = shifted_semiblue(gl_FragCoord.xy);
             #else
                 float dither = shifted_dither13(gl_FragCoord.xy);
             #endif

@@ -58,6 +58,12 @@ float illuminationx_15 = illuminationx_8 * illuminationx_4 * illuminationx_2 * i
 
 candle_color = clamp(candle_color, vec3(0.0), vec3(4.0));
 
+// Give local lights a restrained fantasy presence after dusk. This keeps the
+// original warm light color and falloff; only the night contribution is lifted.
+#if !defined THE_END && !defined NETHER
+    candle_color *= day_blend_float(1.0, 1.0, 1.08);
+#endif
+
 // Atenuation by light angle ===================================
 #if defined THE_END || defined NETHER
     vec3 sun_vec = normalize(gbufferModelView * vec4(0.0, 0.89442719, 0.4472136, 0.0)).xyz;
@@ -68,7 +74,7 @@ candle_color = clamp(candle_color, vec3(0.0), vec3(4.0));
 vec3 normal = gl_NormalMatrix * gl_Normal;
 float sun_light_strength;
 // --- OPTIMIZATION #2: Avoid length() in condicional ---
-if (dot(normal, normal) > 0.0001) { // Workaround for undefined normals
+if (dot(normal, normal) > 0.0001) { // Skip tangent lighting when no normal was supplied.
     normal = normalize(normal);
     sun_light_strength = dot(normal, sun_vec);
 } else {
@@ -164,11 +170,11 @@ float vis_sky_8 = vis_sky_4 * vis_sky_4;
     float omni_color_luma = luma(omni_color);
     
     #if defined SIMPLE_AUTOEXP && COLOR_SCHEME != 11
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, day_blend_float(0.7, 0.4, 0.0) / 4 * AVOID_DARK_LEVEL, 10.0);    
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, day_blend_float(0.7, 0.4, 0.0) / 4 * AVOID_DARK_LEVEL, 10.0);    
     #elif defined SIMPLE_AUTOEXP && COLOR_SCHEME == 11
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, day_blend_float(0.4, 0.45, 0.6) / 4 * AVOID_DARK_LEVEL, 10.0);
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, day_blend_float(0.4, 0.45, 0.6) / 4 * AVOID_DARK_LEVEL, 10.0);
     #else
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, 0.03125 * AVOID_DARK_LEVEL, 10.0);
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, 0.03125 * AVOID_DARK_LEVEL, 10.0);
     #endif
     
     vec3 omni_color_min = omni_color * luma_ratio;
@@ -183,6 +189,27 @@ float vis_sky_8 = vis_sky_4 * vis_sky_4;
     #else
         omni_light = mix(omni_color_min, omni_color, vis_sky_4);
     #endif
+
+    // Cool moon/sky irradiance for exposed surfaces. Rain now scatters a soft
+    // ambient fill instead of removing most night light. The skylight mask
+    // deliberately keeps interiors and caves dark.
+    float fantasy_night_amount = day_blend_float(0.0, 0.0, 1.0);
+    float moon_sky_exposure = smoothstep(0.18, 0.95, visible_sky);
+    vec3 moon_ambient = vec3(0.012, 0.017, 0.028)
+        * fantasy_night_amount
+        * moon_sky_exposure
+        * mix(1.0, 0.82, rainStrength);
+    vec3 rainy_night_fill = vec3(0.010, 0.016, 0.026)
+        * fantasy_night_amount
+        * rainStrength
+        * moon_sky_exposure;
+    // Neutral luminance only: this opens outdoor night shadows slightly while
+    // preserving block hue, biome palette, and the pack's cool fantasy theme.
+    vec3 neutral_night_fill = vec3(NIGHT_NEUTRAL_FILL)
+        * fantasy_night_amount
+        * moon_sky_exposure
+        * mix(1.0, 0.90, rainStrength);
+    omni_light += moon_ambient + rainy_night_fill + neutral_night_fill;
 #endif
 
 // Avoid flat illumination in caves for entities

@@ -11,7 +11,9 @@ gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
             mc_Entity.x == ENTITY_SMALLGRASS ||
             mc_Entity.x == ENTITY_SMALLENTS ||
             mc_Entity.x == ENTITY_LEAVES ||
-        mc_Entity.x == ENTITY_SMALLENTS_NW
+            mc_Entity.x == ENTITY_FANTASY_FLOWERS ||
+            mc_Entity.x == ENTITY_FLOWERING_LEAVES ||
+            mc_Entity.x == ENTITY_SMALLENTS_NW
     );
 
     vec4 sub_position = gl_ModelViewMatrix * gl_Vertex;
@@ -29,7 +31,10 @@ gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 
             if (mc_Entity.x == ENTITY_UPPERGRASS) {
                 weight += 1.0;
-                } else if (mc_Entity.x == ENTITY_LEAVES) {
+                } else if (
+                    mc_Entity.x == ENTITY_LEAVES ||
+                    mc_Entity.x == ENTITY_FLOWERING_LEAVES
+                ) {
                     weight = .6;
             } else if (mc_Entity.x == ENTITY_SMALLENTS && (weight > 0.9 || fract(worldpos.y + 0.0675) > 0.01)) {
                 weight = 1.0;

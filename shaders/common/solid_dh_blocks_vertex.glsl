@@ -43,10 +43,6 @@ varying float direct_light_strength;
 varying vec3 omni_light;
 varying vec4 position;
 varying float fog_adj;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 /* Utility functions */
 
 #if AA_TYPE > 0

@@ -6,10 +6,7 @@ uniform sampler2D tex;
 uniform sampler2D noisetex;
 varying vec3 worldPos;
 uniform vec3 cameraPosition;
-uniform float frameTimeCounter;
 uniform float rainStrength;
-uniform float viewWidth;
-uniform float viewHeight;
 
 /* Ins / Outs */
 

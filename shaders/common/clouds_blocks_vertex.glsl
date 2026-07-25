@@ -3,7 +3,6 @@
 /* Uniforms */
 
 uniform mat4 gbufferProjectionInverse;
-uniform float frameTime;
 
 #if V_CLOUDS == 0 || defined UNKNOWN_DIM
     uniform float rainStrength;

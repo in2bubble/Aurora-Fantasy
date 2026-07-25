@@ -1,5 +1,13 @@
 #include "/lib/config.glsl"
 
+#ifdef RAIN_PUDDLES
+    // Iris 1.11.x discovers boolean shader options through direct #ifdef /
+    // #ifndef references. Keep this direct guard so the master toggle appears.
+    #if !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+        #define RAIN_SURFACE_PASS
+    #endif
+#endif
+
 /* Color utils */
 
 #if defined THE_END
@@ -13,8 +21,6 @@
 /* Uniforms */
 
 uniform sampler2D gaux3;
-uniform float viewWidth;
-uniform float viewHeight;
 uniform vec3 sunPosition;
 uniform int isEyeInWater;
 uniform float light_mix;
@@ -23,8 +29,6 @@ uniform float rainStrength;
 uniform float wetness;
 uniform ivec2 eyeBrightnessSmooth;
 uniform mat4 gbufferProjectionInverse;
-uniform int frameCounter;
-uniform float frameTime;
 
 #ifdef DISTANT_HORIZONS
     uniform int dhRenderDistance;
@@ -56,9 +60,8 @@ uniform mat4 gbufferModelViewInverse;
     uniform vec3 shadowLightPosition;
 #endif
 
-#if WAVING == 1
+#if WAVING == 1 || defined RAIN_SURFACE_PASS
     uniform vec3 cameraPosition;
-    uniform float frameTimeCounter;
 #endif
 
 #if defined IS_IRIS && defined THE_END && MC_VERSION >= 12109
@@ -85,6 +88,10 @@ varying float depth;
 
 #ifdef FOLIAGE_V
     varying float is_foliage;
+#endif
+
+#if defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA
+    varying float fantasy_plant_f;
 #endif
 
 #if defined SHADOW_CASTING && !defined NETHER
@@ -114,9 +121,10 @@ varying vec4 position;
     attribute vec2 mc_midTexCoord;
 #endif
 
-#if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
+#ifdef RAIN_SURFACE_PASS
     varying vec3 worldPos;
     varying vec3 world_normal;
+    varying vec3 puddle_sky_zenith;
     varying float no_puddle_f;
     varying float sky_light_f;
 #endif
@@ -137,12 +145,6 @@ varying vec4 position;
     #include "/lib/vector_utils.glsl"
 #endif
 
-#if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
-    #if WAVING == 0
-        uniform vec3 cameraPosition;
-    #endif
-#endif
-
 #include "/lib/luma.glsl"
 
 #define FOG_BIOME
@@ -152,6 +154,20 @@ varying vec4 position;
 // MAIN FUNCTION ------------------
 
 void main() {
+    // Iris 1.11 / Minecraft 26.2 creates more specialized terrain and entity
+    // programs than earlier versions.  These varyings are consumed by the
+    // shared fragment stage even when a specialized vertex path has no
+    // material ID to write. Explicit neutral values give every program a
+    // complete vertex/fragment interface at compile time.
+    block_type_f = 0.0;
+    #if defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA
+        fantasy_plant_f = 0.0;
+    #endif
+    #if defined EMMISIVE_MATERIAL || defined EMMISIVE_ORE
+        ore_type_f = 0.0;
+        emitter_type_f = 0.0;
+    #endif
+
     exposure = texture2D(gaux3, vec2(0.5)).r;
     position = gbufferModelViewInverse * gl_ModelViewMatrix * gl_Vertex;
 
@@ -188,6 +204,17 @@ void main() {
 
     #if defined GBUFFER_TERRAIN 
         float eid = float(mc_Entity.x);
+
+        #if defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA
+            float fantasy_flower = step(10509.5, eid) * step(eid, 10510.5);
+            float fantasy_blossom_leaves = step(10510.5, eid) * step(eid, 10511.5);
+            float fantasy_leaves = step(10017.5, eid) * step(eid, 10018.5);
+            float fantasy_grass_flora = step(10030.5, eid) * step(eid, 10031.5);
+            fantasy_plant_f = fantasy_flower
+                + fantasy_leaves * 2.0
+                + fantasy_blossom_leaves * 3.0
+                + fantasy_grass_flora * 4.0;
+        #endif
 
         #if defined EMMISIVE_ORE
             float is_ore = step(8999.5, eid) * step(eid, 9007.5);
@@ -266,9 +293,13 @@ void main() {
         lmcoord_alt = lmcoord;      
     #endif
 
-    #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
+    #ifdef RAIN_SURFACE_PASS
         worldPos = position.xyz + cameraPosition;
         world_normal = normalize((gbufferModelViewInverse * vec4(normal, 0.0)).xyz);
+        // hi_sky_color is Aurora's own weather/time-aware zenith colour in XYZ.
+        // Passing it to the fragment stage keeps puddle reflections in the same
+        // colour language as the rendered sky instead of a flat grey value.
+        puddle_sky_zenith = hi_sky_color;
         sky_light_f = clamp((lmcoord.y - 0.8) / 0.2, 0.0, 1.0);
         // Mark hot/dry blocks that should not have puddles
         #if defined GBUFFER_TERRAIN

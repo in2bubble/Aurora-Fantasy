@@ -57,10 +57,6 @@ varying vec3 low_sky_color;
 varying vec3 pure_hi_sky_color;
 varying vec3 pure_mid_sky_color;
 varying vec3 pure_low_sky_color;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 /* Utility functions */
 
 #if AA_TYPE > 0

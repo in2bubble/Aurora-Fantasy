@@ -18,10 +18,6 @@ varying float sky_luma_correction;
 varying vec3 cursed_sky;
 varying float current_wetness;
 varying vec3 local_pos;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 #if AA_TYPE > 0
     #include "/src/taa_offset.glsl"
 #endif
@@ -39,6 +35,9 @@ uniform mat4 gbufferModelViewInverse;
 // MAIN FUNCTION ------------------
 
 void main() {
+    // Neutral default completes the vertex/fragment interface for every sky
+    // program variant, while custom schemes overwrite it below.
+    cursed_sky = vec3(1.0);
     
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     tint_color = gl_Color;

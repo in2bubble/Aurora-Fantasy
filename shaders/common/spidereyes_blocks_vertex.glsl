@@ -3,7 +3,6 @@
 /* Uniforms */
 
 uniform mat4 gbufferProjectionInverse;
-uniform float frameTime;
 
 #if defined SHADOW_CASTING && !defined NETHER
     uniform mat4 gbufferModelViewInverse;

@@ -9,16 +9,8 @@ uniform float day_moment;
 uniform float day_mixer;
 uniform float night_mixer;
 uniform vec3 skyColor;
-uniform float viewWidth;
-uniform float viewHeight;
-
-#if MC_VERSION >= 11900
-    uniform float darknessFactor;
-    uniform float darknessLightFactor;
-#endif
 
 #if V_CLOUDS == 0 || defined UNKNOWN_DIM
-    #include "/lib/screen_size.glsl"
     uniform sampler2D gaux4;
 #endif
 

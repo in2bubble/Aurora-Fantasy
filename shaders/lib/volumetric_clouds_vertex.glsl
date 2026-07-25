@@ -1,7 +1,10 @@
 #if MC_VERSION >= 11300
-    umbral = (smoothstep(1.0, 0.0, rainStrength) * .3) + .25;
+    // The previous clear-weather threshold reached 0.55 before its dynamic
+    // multiplier. Since the natural cloud texture is centered near 0.5, that
+    // discarded most of both rotated samples and left an almost empty sky.
+    umbral = (smoothstep(1.0, 0.0, rainStrength) * 0.24) + 0.20;
 #else
-    umbral = (smoothstep(1.0, 0.0, rainStrength) * .3) + .45;
+    umbral = (smoothstep(1.0, 0.0, rainStrength) * 0.24) + 0.36;
 #endif
 
 #if COLOR_SCHEME == 12
@@ -9,6 +12,9 @@
 #endif
 
 umbral *= CLOUD_DENSITY;
+// Restore the sparse night silhouette: only a few cloud formations survive
+// the threshold, leaving the aurora as the dominant feature of the night sky.
+umbral *= day_blend_float(1.0, 1.0, 1.20);
 
 bool check = (lightningBoltPosition.w > 0.001);
 float lightning = float(check);
@@ -86,6 +92,26 @@ dark_cloud_color = mix(
     ),
     0.4
 );
+
+// Dense night clouds still receive diffuse moon/sky irradiance. Lifting only
+// values below this floor preserves their internal density texture and avoids
+// the crushed-black patches produced by the very dark zenith palette.
+float night_cloud_amount = day_blend_float(0.0, 0.0, 1.0);
+// Overcast nights scatter moon/sky light instead of crushing cloud detail.
+vec3 moon_cloud_floor = vec3(0.048, 0.078, 0.118)
+    * mix(1.0, 1.10, rainStrength);
+float dark_cloud_luma = luma(dark_cloud_color);
+float dark_recovery = night_cloud_amount
+    * (1.0 - smoothstep(0.018, 0.075, dark_cloud_luma));
+dark_cloud_color = mix(
+    dark_cloud_color, moon_cloud_floor, dark_recovery * 0.80);
+
+float lit_cloud_luma = luma(cloud_color);
+float lit_recovery = night_cloud_amount
+    * (1.0 - smoothstep(0.035, 0.12, lit_cloud_luma));
+cloud_color = mix(
+    cloud_color, moon_cloud_floor * vec3(1.22, 1.16, 1.28),
+    lit_recovery * 0.56);
 
 #if COLOR_SCHEME == 11
     cloud_color *= mix(1.75, 1.5, rainStrength);

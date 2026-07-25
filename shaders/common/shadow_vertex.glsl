@@ -1,5 +1,9 @@
 #include "/lib/config.glsl"
 
+#ifdef SHADOW_ENTITIES
+    #define AURORA_ENTITY_SHADOWS
+#endif
+
 
 /* Uniforms */
 

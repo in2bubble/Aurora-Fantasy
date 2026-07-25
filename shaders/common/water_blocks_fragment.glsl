@@ -13,9 +13,6 @@
 /* Uniforms */
 
 uniform sampler2D tex;
-uniform float viewWidth;
-uniform float viewHeight;
-#include "/lib/screen_size.glsl"
 uniform float near;
 uniform float far;
 uniform sampler2D gaux1;
@@ -24,7 +21,6 @@ uniform mat4 gbufferProjection;
 uniform sampler2D noisetex;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
-uniform float frameTimeCounter;
 uniform int isEyeInWater;
 uniform vec3 sunPosition;
 uniform vec3 moonPosition;
@@ -38,7 +34,6 @@ uniform ivec2 eyeBrightnessSmooth;
 uniform sampler2D gaux4;
 uniform float alphaTestRef;
 uniform vec4 lightningBoltPosition;
-uniform float frameTime;
 uniform mat4 gbufferModelViewInverse;
 
 #if defined DISTANT_HORIZONS
@@ -69,11 +64,6 @@ uniform mat4 gbufferModelViewInverse;
 
 uniform float blindness;
 
-#if MC_VERSION >= 11900
-    uniform float darknessFactor;
-    uniform float darknessLightFactor;
-#endif
-
 /* Ins / Outs */
 
 varying vec2 texcoord;
@@ -98,7 +88,6 @@ varying vec3 low_sky_color;
 varying vec3 pure_hi_sky_color;
 varying vec3 pure_mid_sky_color;
 varying vec3 pure_low_sky_color;
-uniform int frameCounter;
 
 vec4 fragpos = gbufferProjectionInverse * (vec4(gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y), gl_FragCoord.z, 1.0) * 2.0 - 1.0);
 vec3 nfragpos = normalize(fragpos.xyz);
@@ -115,7 +104,6 @@ vec3 nfragpos = normalize(fragpos.xyz);
 #endif
 
 /* Utility functions */
-#include "/lib/fps_correction.glsl"
 #include "/lib/luma.glsl"
 
 #include "/lib/projection_utils.glsl"
@@ -129,6 +117,10 @@ vec3 nfragpos = normalize(fragpos.xyz);
 
 #if defined SHADOW_CASTING && !defined NETHER
     #include "/lib/shadow_frag.glsl"
+#endif
+
+#if !defined NETHER && !defined THE_END
+    #include "/lib/aurora.glsl"
 #endif
 
 #if defined CLOUD_REFLECTION && (V_CLOUDS > 0 && !defined UNKNOWN_DIM) && !defined NETHER
@@ -184,8 +176,16 @@ void main() {
 
     sky_color_reflect = xyz_to_rgb(sky_color_reflect);
 
-    #if defined CLOUD_REFLECTION && (V_CLOUDS > 0 && !defined UNKNOWN_DIM) && !defined NETHER
-        sky_color_reflect = get_cloud(normalize((gbufferModelViewInverse * vec4(reflect_water_vec * far, 1.0)).xyz), sky_color_reflect, 0.0, dither, worldposition.xyz, int(CLOUD_STEPS_AVG * 0.5), umbral, cloud_color, dark_cloud_color, 1.0);
+    #if !defined NETHER && !defined THE_END
+        vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflect_water_vec, 0.0)).xyz);
+        #if (COLOR_SCHEME == 8 || COLOR_SCHEME == 11) && defined AURORA_REFLECTIONS
+            vec3 auroraReflect = getAurora(worldReflectDir, sunPosition);
+            sky_color_reflect += auroraReflect;
+        #endif
+
+        #if defined CLOUD_REFLECTION && (V_CLOUDS > 0 && !defined UNKNOWN_DIM)
+            sky_color_reflect = get_cloud(worldReflectDir, sky_color_reflect, 0.0, dither, worldposition.xyz, int(CLOUD_STEPS_AVG * 0.5), umbral, cloud_color, dark_cloud_color, 1.0);
+        #endif
     #endif
     if(block_type > 2.9 && block_type < 3.1) {  // Water
         #ifdef VANILLA_WATER

@@ -18,89 +18,10 @@ gaux4 - Fog auxiliar
 const int noisetexFormat = RG8;
 const int colortex0Format = R8;
 */
-#ifdef DOF
-    #ifdef DOF_HDR // COLOR_BITS does not affect HDR.
-        /*
-        const int colortex1Format = RGBA16F;
-        */
-    #else
-        #if COLOR_BITS == 8
-        /*
-        const int colortex1Format = RGBA8;
-        */
-        #elif COLOR_BITS == 10
-        /*
-        const int colortex1Format = RGB10_A2;
-        */
-        #elif COLOR_BITS == 16
-        /*
-        const int colortex1Format = RGBA16;
-        */
-        #endif
-    #endif
-#else
-    #ifdef HDR
-        /*
-        const int colortex1Format = R11F_G11F_B10F;
-        */
-    #else
-        #if COLOR_BITS == 8
-        /*
-        const int colortex1Format = RGBA8;
-        */
-        #elif COLOR_BITS == 10
-        /*
-        const int colortex1Format = RGB10_A2;
-        */
-        #elif COLOR_BITS == 16
-        /*
-        const int colortex1Format = RGBA16;
-        */
-        #endif
-    #endif
-#endif
-
-#ifdef DOF
-    #ifdef DOF_HDR // COLOR_BITS does not affect HDR.
-        /*
-        const int colortex3Format = RGBA16F;
-        */
-    #else
-        #if COLOR_BITS == 8
-        /*
-        const int colortex3Format = RGBA8;
-        */
-        #elif COLOR_BITS == 10
-        /*
-        const int colortex3Format = RGBA8;
-        */
-        #elif COLOR_BITS == 16
-        /*
-        const int colortex3Format = RGBA16;
-        */
-        #endif
-    #endif
-#else
-    #ifdef HDR
-        /*
-        const int colortex3Format = R11F_G11F_B10F;
-        */
-    #else
-        #if COLOR_BITS == 8
-        /*
-        const int colortex3Format = RGBA8;
-        */
-        #elif COLOR_BITS == 10
-        /*
-        const int colortex3Format = RGB10_A2;
-        */
-        #elif COLOR_BITS == 16
-        /*
-        const int colortex3Format = RGBA16;
-        */
-        #endif
-    #endif
-#endif
+/*
+const int colortex1Format = RGBA16;
+const int colortex3Format = RGBA16;
+*/
 /*
 const int gaux1Format = RGBA8;
 const int gaux2Format = R8;
@@ -135,18 +56,13 @@ uniform sampler2D colortex3;
 
 uniform sampler2D gaux3;
 uniform sampler2D colortex1;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
 uniform int isEyeInWater;
 uniform float day_moment;
 uniform float day_mixer;
 uniform float night_mixer;
 uniform float near;
 uniform float far;
-#include "/lib/screen_size.glsl"
 uniform sampler2D depthtex1;
-uniform float frameTime;
 
 /* Ins / Outs */
 
@@ -261,6 +177,18 @@ void main() {
 
     #ifdef COLOR_BLINDNESS
         block_color = color_blindness(block_color); // Color Blindness
+    #endif
+
+    // Final display-space quantization dither. A stable, zero-mean signal
+    // smaller than one 8-bit code value removes visible gradient bands without
+    // blur, extra texture samples, or temporal shimmer.
+    #if !defined DEBUG_MODE && !defined PS1_LIKE
+        vec3 quantizationDither = vec3(
+            dither_makeup(gl_FragCoord.xy),
+            dither_makeup(gl_FragCoord.xy + vec2(19.0, 7.0)),
+            dither_makeup(gl_FragCoord.xy + vec2(43.0, 29.0))
+        ) - vec3(0.5);
+        block_color += quantizationDither * (1.0 / 255.0);
     #endif
 
     #ifdef DEBUG_MODE

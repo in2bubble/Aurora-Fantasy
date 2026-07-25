@@ -8,10 +8,6 @@ uniform mat4 gbufferProjectionInverse;
 
 varying vec2 texcoord;
 varying float var_fog_frag_coord;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 /* Utility functions */
 
 #if AA_TYPE > 0

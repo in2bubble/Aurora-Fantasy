@@ -15,10 +15,6 @@
 uniform float rainStrength;
 uniform float wetness;
 uniform mat4 gbufferProjectionInverse;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 
 #if defined SHADOW_CASTING && !defined NETHER
     uniform mat4 gbufferModelViewInverse;

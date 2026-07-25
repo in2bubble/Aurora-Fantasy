@@ -15,12 +15,7 @@
 /* Uniforms */
 
 uniform sampler2D tex;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-uniform float frameTime;
 #ifdef THE_END
-    uniform float frameTimeCounter;
     uniform vec3 cameraPosition;
     uniform mat4 gbufferModelViewInverse;
     uniform mat4 gbufferProjectionInverse;

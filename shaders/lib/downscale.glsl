@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.3 - downscale.glsl #include "/lib/downscale.glsl"
+Aurora Fantasy 5.4 - downscale.glsl #include "/lib/downscale.glsl"
 Downscale functions. - Funções de downscale.*/ 
 
 #define viewSize vec2(viewWidth, viewHeight)

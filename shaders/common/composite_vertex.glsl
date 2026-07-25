@@ -13,23 +13,15 @@
 uniform float rainStrength;
 uniform float wetness;
 uniform ivec2 eyeBrightnessSmooth;
-
-
 uniform sampler2D colortex1;
 uniform sampler2D gaux3;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform float frameTime;
-uniform float frameTimeCounter;
 
 /* Ins / Outs */
 
 varying vec2 texcoord;
 varying vec3 direct_light_color;
 varying vec3 direct_light_strength;
-
-
-varying float exposure;  // Flat
+varying float exposure;
 
 
 /* Utility functions */

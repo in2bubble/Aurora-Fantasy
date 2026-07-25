@@ -14,13 +14,12 @@
 /* Uniforms */
 
 uniform sampler2D colortex1;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
 
 #if AA_TYPE > 0
     uniform sampler2D colortex3;  // TAA past averages
-    #include "/lib/screen_size.glsl"
+    #if defined BLOOM && defined FANTASY_LIFE_SYSTEM && FANTASY_FIREFLIES > 0
+        uniform sampler2D gaux1;  // Bloom RGB + firefly reactive mask in alpha
+    #endif
     uniform mat4 gbufferProjectionInverse;
     uniform mat4 gbufferProjection;
     uniform mat4 gbufferModelViewInverse;
@@ -29,7 +28,6 @@ uniform int frameCounter;
     uniform mat4 gbufferPreviousProjection;
     uniform mat4 gbufferPreviousModelView;
     uniform sampler2D depthtex1;
-    uniform float frameTime;
 #endif
 
 /* Ins / Outs */
@@ -87,10 +85,19 @@ void main() {
     #endif
 
     #if AA_TYPE > 0
+        float fireflyReactive = 0.0;
+        #if defined BLOOM && defined FANTASY_LIFE_SYSTEM && FANTASY_FIREFLIES > 0
+            fireflyReactive = smoothstep(
+                0.006, 0.16,
+                texture2DLod(gaux1, texcoord, 0.0).a);
+        #endif
+
         #ifdef DOF
-            block_color = fast_taa_depth(block_color, texcoord_past);
+            block_color = fast_taa_depth(
+                block_color, texcoord_past, fireflyReactive);
         #else
-            block_color.rgb = fast_taa(block_color.rgb, texcoord_past);
+            block_color.rgb = fast_taa(
+                block_color.rgb, texcoord_past, fireflyReactive);
         #endif
 
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));

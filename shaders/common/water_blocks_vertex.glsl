@@ -25,10 +25,6 @@ uniform float rainStrength;
 uniform float wetness;
 uniform mat4 gbufferProjectionInverse;
 uniform vec4 lightningBoltPosition;
-uniform float viewWidth; 
-uniform float viewHeight; 
-uniform int frameCounter;
-uniform float frameTime;
 #ifdef DISTANT_HORIZONS
     uniform int dhRenderDistance;
 #endif

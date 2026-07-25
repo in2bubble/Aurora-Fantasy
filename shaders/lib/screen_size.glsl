@@ -11,4 +11,7 @@ screen-space effects cover only the lower-left 1024x1024 region.
 #define AURORA_SCREEN_SIZE_GLSL
     #define pixel_size_x (1.0 / max(viewWidth, 1.0))
     #define pixel_size_y (1.0 / max(viewHeight, 1.0))
+    #ifndef RENDER_SCALE
+        #define RENDER_SCALE 1.0
+    #endif
 #endif

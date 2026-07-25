@@ -2,37 +2,50 @@
 Water reflection and refraction related functions.
 */
 
-const float MIN_CORRECTION = 1.0; 
-const float MAX_CORRECTION = 3.0; 
-float adaptFPS = fps_correction(fps, MIN_CORRECTION, MAX_CORRECTION);
-
-vec3 fast_raymarch(vec3 direction, vec3 hit_coord, inout float infinite, float dither) {
+vec3 fast_raymarch(
+    vec3 direction,
+    vec3 hit_coord,
+    inout float infinite,
+    out float hit_confidence,
+    float dither
+) {
     vec3 dir_increment;
     vec3 current_march = hit_coord;
     vec3 old_current_march;
-    float screen_depth;
+    float screen_depth = 1.0;
     float depth_diff = 1.0;
     vec3 march_pos = camera_to_screen(hit_coord);
     float prev_screen_depth = march_pos.z;
     float hit_z = march_pos.z;
     bool search_flag = false;
     bool hidden_flag = false;
-    bool first_hidden = true;
     bool out_flag = false;
     bool to_far = false;
+    bool valid_hit = false;
     vec3 last_march_pos;
     
     int no_hidden_steps = 0;
     bool hiddens = false;
 
-    // Ray marching
-    for (int i = 0; i < RAYMARCH_STEPS + 1; i += int(adaptFPS)) {
+    hit_confidence = 0.0;
+
+    // A fixed iteration budget is selected by the shader profile. Changing
+    // the stride with instantaneous FPS made reflections pop between several
+    // different ray paths and did not preserve their energy.
+    for (int i = 0; i < RAYMARCH_STEPS; i++) {
         if (search_flag) {
             dir_increment *= 0.5;
             current_march += dir_increment * sign(depth_diff);
         } else {
             old_current_march = current_march;
-            current_march = hit_coord + ((direction * exp2(i + dither)) - direction);
+            // Spread every quality tier over the same useful world-space
+            // range. More samples now add precision instead of extending the
+            // march into depths that cannot produce a visible reflection.
+            float march_exponent =
+                (float(i) + dither)
+                * (10.0 / float(RAYMARCH_STEPS - 1));
+            current_march =
+                hit_coord + direction * (exp2(march_exponent) - 1.0);
             dir_increment = current_march - old_current_march;
         }
 
@@ -41,12 +54,13 @@ vec3 fast_raymarch(vec3 direction, vec3 hit_coord, inout float infinite, float d
 
         if ( // Is outside screen space
             march_pos.x < 0.0 ||
-            march_pos.x > 1.0 ||
+            march_pos.x > RENDER_SCALE ||
             march_pos.y < 0.0 ||
-            march_pos.y > 1.0 ||
+            march_pos.y > RENDER_SCALE ||
             march_pos.z < 0.0
         ) {
             out_flag = true;
+            break;
         }
 
         if (march_pos.z > 0.9999) {
@@ -59,9 +73,6 @@ vec3 fast_raymarch(vec3 direction, vec3 hit_coord, inout float infinite, float d
         if (depth_diff < 0.0 && abs(screen_depth - prev_screen_depth) > abs(march_pos.z - last_march_pos.z)) {
             hidden_flag = true;
             hiddens = true;
-            if (first_hidden) {
-                first_hidden = false;
-            }
         } else if (depth_diff > 0.0) {
             hidden_flag = false;
             if (!hiddens) {
@@ -71,30 +82,25 @@ vec3 fast_raymarch(vec3 direction, vec3 hit_coord, inout float infinite, float d
 
         if (search_flag == false && depth_diff < 0.0 && hidden_flag == false) {
             search_flag = true;
+            valid_hit = true;
         }
 
         prev_screen_depth = screen_depth;
     }
 
-    infinite = float(screen_depth > 0.9999);
+    infinite = float(!valid_hit || screen_depth > 0.9999 || out_flag || to_far);
 
     if (out_flag) {
-        infinite = 1.0;
-        return march_pos;
+        return clamp(march_pos, vec3(0.0), vec3(RENDER_SCALE, RENDER_SCALE, 1.0));
     } else if (to_far) {
-        if (screen_depth > 0.9999) {
-            infinite = 1.0;
-            return march_pos;
-        } else if (no_hidden_steps < 3 || screen_depth > hit_z) {
-            return march_pos;
-        } else {
-            infinite = 1.0;
-            return vec3(1.0);
-        }
-    } else {
-        march_pos.xy = clamp(march_pos.xy, vec2(0.0), vec2(RENDER_SCALE));
-        return march_pos;
+        valid_hit = valid_hit && screen_depth < 0.9999
+            && (no_hidden_steps < 3 || screen_depth > hit_z);
     }
+
+    march_pos.xy = clamp(march_pos.xy, vec2(0.0), vec2(RENDER_SCALE));
+    hit_confidence = float(valid_hit);
+    infinite = 1.0 - hit_confidence;
+    return march_pos;
 }
 
 #if SUN_REFLECTION > 0
@@ -249,6 +255,7 @@ vec3 get_normals(vec3 bump, vec3 fragpos) {
 }
 
 vec4 reflection_calc(vec3 fragpos, vec3 normal, vec3 reflected, inout float infinite, float dither) {
+    float hit_confidence = 1.0;
     #if SSR_TYPE == 0  // Flipped image
         #if defined DISTANT_HORIZONS
             vec3 pos = camera_to_screen(fragpos + reflected * 768.0);
@@ -256,7 +263,7 @@ vec4 reflection_calc(vec3 fragpos, vec3 normal, vec3 reflected, inout float infi
             vec3 pos = camera_to_screen(fragpos + reflected * 76.0);
         #endif
     #else  // Raymarch
-        vec3 pos = fast_raymarch(reflected, fragpos, infinite, dither);
+        vec3 pos = fast_raymarch(reflected, fragpos, infinite, hit_confidence, dither);
     #endif
     float pos_y_normalized = pos.y / RENDER_SCALE;
 
@@ -271,7 +278,7 @@ vec4 reflection_calc(vec3 fragpos, vec3 normal, vec3 reflected, inout float infi
         pos.x = RENDER_SCALE - (pos.x - RENDER_SCALE);
     }
     
-    return vec4(texture2D(gaux1, pos.xy).rgb, border);
+    return vec4(texture2D(gaux1, pos.xy).rgb, border * hit_confidence);
 }
 
 vec3 water_shader(
@@ -322,6 +329,7 @@ vec3 water_shader(
 //  GLASS
 
 vec4 cristal_reflection_calc(vec3 fragpos, vec3 normal, inout float infinite, float dither) {
+    float hit_confidence = 1.0;
     #if SSR_TYPE == 0
         #if defined DISTANT_HORIZONS
             vec3 reflected_vector = reflect(normalize(fragpos), normal) * 768.0;
@@ -331,22 +339,18 @@ vec4 cristal_reflection_calc(vec3 fragpos, vec3 normal, inout float infinite, fl
             vec3 pos = camera_to_screen(fragpos + reflected_vector);
     #else
         vec3 reflected_vector = reflect(normalize(fragpos), normal);
-        vec3 pos = fast_raymarch(reflected_vector, fragpos, infinite, dither);
-
-        if (pos.x > 99.0) { // Fallback
-            #if defined DISTANT_HORIZONS
-                pos = camera_to_screen(fragpos + reflected_vector * 768.0);
-            #else
-                pos = camera_to_screen(fragpos + reflected_vector * 76.0);
-            #endif
-        }
+        vec3 pos = fast_raymarch(
+            reflected_vector, fragpos, infinite, hit_confidence, dither);
     #endif
-    
-        float border_x = max(-fourth_pow(abs(2.0 * pos.x - 1.0)) + 1.0, 0.0);
-        float border_y = max(-fourth_pow(abs(2.0 * pos.y - 1.0)) + 1.0, 0.0);
+
+        vec2 normalized_pos = pos.xy / RENDER_SCALE;
+        float border_x = max(-fourth_pow(abs(2.0 * normalized_pos.x - 1.0)) + 1.0, 0.0);
+        float border_y = max(-fourth_pow(abs(2.0 * normalized_pos.y - 1.0)) + 1.0, 0.0);
         float border = min(border_x, border_y);
     
-    return vec4(texture2D(gaux1, pos.xy).rgb, border);
+    // A missed SSR ray contributes no screen image; cristal_shader then uses
+    // its physically stable sky reflection instead of a projected fake hit.
+    return vec4(texture2D(gaux1, pos.xy).rgb, border * hit_confidence);
 }
 
 vec4 cristal_shader(

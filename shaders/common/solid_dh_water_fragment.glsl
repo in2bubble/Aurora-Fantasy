@@ -13,7 +13,6 @@
 /* Uniforms */
 
 uniform sampler2D tex;
-#include "/lib/screen_size.glsl"
 uniform float near;
 uniform float far;
 uniform sampler2D gaux1;
@@ -23,7 +22,6 @@ uniform mat4 gbufferProjection;
 uniform sampler2D noisetex;
 uniform sampler2D depthtex0;
 uniform sampler2D dhDepthTex1;
-uniform float frameTimeCounter;
 uniform int isEyeInWater;
 uniform vec3 sunPosition;
 uniform vec3 moonPosition;
@@ -33,18 +31,13 @@ uniform float rainStrength;
 uniform float wetness;
 uniform float light_mix;
 uniform ivec2 eyeBrightnessSmooth;
-uniform float viewWidth;
-uniform float viewHeight;
 uniform float dhNearPlane;
 uniform float dhFarPlane;
 uniform vec3 cameraPosition;
 uniform int dhRenderDistance;
 uniform vec4 lightningBoltPosition;
-uniform float frameTime;
 
-#if SUN_REFLECTION == 2
-    uniform mat4 gbufferModelViewInverse;
-#endif
+uniform mat4 gbufferModelViewInverse;
 
 #if V_CLOUDS > 0
     uniform sampler2D gaux2;
@@ -59,11 +52,6 @@ uniform float frameTime;
 #endif
 
 uniform float blindness;
-
-#if MC_VERSION >= 11900
-    uniform float darknessFactor;
-    uniform float darknessLightFactor;
-#endif
 
 /* Ins / Outs */
 
@@ -102,6 +90,10 @@ vec3 nfragpos = normalize(fragpos.xyz);
 #include "/lib/depth.glsl"
 #include "/lib/luma.glsl"
 #include "/src/current_sky_color.glsl"
+
+#if !defined NETHER && !defined THE_END
+    #include "/lib/aurora.glsl"
+#endif
 
 #define FRAGMENT
 #include "/lib/downscale.glsl"
@@ -158,6 +150,14 @@ void main() {
     }
 
     sky_color_reflect = xyz_to_rgb(sky_color_reflect);
+
+    #if !defined NETHER && !defined THE_END
+        #if (COLOR_SCHEME == 8 || COLOR_SCHEME == 11) && defined AURORA_REFLECTIONS
+            vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflect_water_vec, 0.0)).xyz);
+            vec3 auroraReflect = getAurora(worldReflectDir, sunPosition);
+            sky_color_reflect += auroraReflect;
+        #endif
+    #endif
 
     #if !defined VANILLA_WATER && WATER_TEXTURE == 1
         vec4 block_color = vec4(0.1);

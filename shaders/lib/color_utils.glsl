@@ -145,22 +145,22 @@ uniform vec3 skyColor;
     #define LIGHT_NIGHT_COLOR vec3(0.015, 0.02, 0.035) * NIGHT_BRIGHT_PHASE
     
     #if SIMPLE_SKY == 0 // Aurora Fantasy - Cinematic Fantasy Sky
-        // === SUNSET COLORS (الشفق الدرامي) ===
-        #define ZENITH_SUNSET_COLOR vec3(0.08, 0.05, 0.25) // Deep Violet Night - بنفسجي عميق
+        // === SUNSET COLORS ===
+        #define ZENITH_SUNSET_COLOR vec3(0.08, 0.05, 0.25) // Deep Violet Night
         
-        // === DAY COLORS (سماء فانتازيا ساحرة) ===
-        #define ZENITH_DAY_COLOR vec3(0.08, 0.15, 0.32) // Soft Azure Fantasy - أزرق سماوي ناعم
+        // === DAY COLORS ===
+        #define ZENITH_DAY_COLOR vec3(0.08, 0.15, 0.32) // Soft Azure Fantasy
         
-        // === NIGHT COLORS (الليل الغامض) ===
+        // === NIGHT COLORS ===
         #define ZENITH_NIGHT_COLOR vec3(0.001, 0.003, 0.012) * NIGHT_BRIGHT_PHASE // Deep Space Black-Blue
         
-        // === SUNSET HORIZON (أفق الشفق الناري) ===
-        #define HORIZON_SUNSET_COLOR vec3(1.0, 0.45, 0.15) // Golden Fire Orange - برتقالي ناري ذهبي
+        // === SUNSET HORIZON ===
+        #define HORIZON_SUNSET_COLOR vec3(1.0, 0.45, 0.15) // Golden Fire Orange
         
-        // === DAY HORIZON (أفق فانتازيا حالم) ===
-        #define HORIZON_DAY_COLOR vec3(0.45, 0.55, 0.75) // Dreamy Lavender Mist - ضباب لافندر حالم
+        // === DAY HORIZON ===
+        #define HORIZON_DAY_COLOR vec3(0.45, 0.55, 0.75) // Dreamy Lavender Mist
         
-        // === NIGHT HORIZON (أفق الليل البنفسجي) ===
+        // === NIGHT HORIZON ===
         #define HORIZON_NIGHT_COLOR vec3(0.02, 0.025, 0.06) * NIGHT_BRIGHT_PHASE // Night Violet Horizon
     #else // Aurora Classic Legacy
         #define ZENITH_SUNSET_COLOR vec3(0.3, 0.35, 0.45)
@@ -176,10 +176,10 @@ uniform vec3 skyColor;
     #undef  MID_DAY_COLOR
     #undef  MID_NIGHT_COLOR
 
-    // === MID LAYER COLORS (الطبقة الوسطى) ===
-    #define MID_SUNSET_COLOR vec3(0.9, 0.3, 0.5) // Fiery Magenta Rose - وردي ماجنتا ناري
-    #define MID_DAY_COLOR vec3(0.18, 0.28, 0.5) // Soft Periwinkle - بنفسجي سماوي ناعم
-    #define MID_NIGHT_COLOR vec3(0.008, 0.015, 0.04) * NIGHT_BRIGHT_PHASE // Midnight Blue - أزرق منتصف الليل
+    // === MID LAYER COLORS ===
+    #define MID_SUNSET_COLOR vec3(0.9, 0.3, 0.5) // Fiery Magenta Rose
+    #define MID_DAY_COLOR vec3(0.18, 0.28, 0.5) // Soft Periwinkle
+    #define MID_NIGHT_COLOR vec3(0.008, 0.015, 0.04) * NIGHT_BRIGHT_PHASE // Midnight Blue
 
     #define WATER_COLOR vec3(0.04, 0.12, 0.22)
 #elif COLOR_SCHEME == 9  // LITE Realistic (pollution)

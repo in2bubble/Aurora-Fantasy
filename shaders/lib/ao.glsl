@@ -43,14 +43,22 @@ float dbao(float dither) {
         angle += clamp(0.5 - sample_d, 0.0, 1.0);
         dist += clamp(0.25 * sample_d - 1.0, 0.0, 1.0);
 
-        // Cross-axis sample for thicker AO in corners
-        vec2 cross_offset = vec2(-offset.y, offset.x) * 0.5;
-        sd = ld(texture2DLod(depthtex0, texcoord.xy * RENDER_SCALE + cross_offset, 0.0).r);
-        float cross_d = (d - sd) * far_and_check;
-        float cross_ao = clamp(0.5 - cross_d, 0.0, 1.0) + clamp(0.25 * cross_d - 1.0, 0.0, 1.0);
+        #if PROFILE_QUALITY == 1
+            // The opposite pair already covers both sides of the horizon.
+            // TAA rotates that pair every frame, recovering the missing cross
+            // direction without a third full-resolution depth fetch.
+            ao += clamp(angle + dist, 0.0, 1.0);
+            total_weight += 1.0;
+        #else
+            // Extreme retains the original third, cross-axis sample.
+            vec2 cross_offset = vec2(-offset.y, offset.x) * 0.5;
+            sd = ld(texture2DLod(depthtex0, texcoord.xy * RENDER_SCALE + cross_offset, 0.0).r);
+            float cross_d = (d - sd) * far_and_check;
+            float cross_ao = clamp(0.5 - cross_d, 0.0, 1.0) + clamp(0.25 * cross_d - 1.0, 0.0, 1.0);
 
-        ao += clamp(angle + dist, 0.0, 1.0) + cross_ao * 0.3;
-        total_weight += 1.3;
+            ao += clamp(angle + dist, 0.0, 1.0) + cross_ao * 0.3;
+            total_weight += 1.3;
+        #endif
     }
     ao /= max(total_weight, 1.0);
 
@@ -58,5 +66,8 @@ float dbao(float dither) {
     float dist_fade = 1.0 - smoothstep(0.6, 0.95, d * far / far);
     ao *= dist_fade;
 
-    return sqrt((ao * clamp(AO_STRENGTH, 0.0, 1.0)) + (1.0 - clamp(AO_STRENGTH, 0.0, 1.0)));
+    // Use strength as a visibility exponent. The old interpolation clamped
+    // every value above 1.0, so the former Extreme value of 2.0 had no effect.
+    float ao_visibility = sqrt(clamp(ao, 0.0, 1.0));
+    return pow(max(ao_visibility, 0.001), max(AO_STRENGTH, 0.0));
 }

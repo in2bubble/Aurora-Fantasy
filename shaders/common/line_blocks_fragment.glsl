@@ -5,8 +5,6 @@
 /* Ins / Outs & Uniforms */
 
 varying vec4 tint_color;
-uniform float viewWidth;
-uniform float viewHeight;
 
 #define FRAGMENT
 #include "/lib/downscale.glsl"

@@ -17,10 +17,6 @@ uniform float rainStrength;
 uniform float wetness;
 uniform vec3 sunPosition;
 uniform mat4 gbufferModelViewInverse;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-uniform float frameTime;
 /* Ins / Outs */
 
 varying vec3 up_vec;

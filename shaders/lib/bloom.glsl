@@ -4,23 +4,21 @@ Bloom functions.
 in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 */
 
-const float MIN_CORRECTION = 1.0; 
-const float MAX_CORRECTION = 3.0; 
-float adaptFPS = fps_correction(fps, MIN_CORRECTION, MAX_CORRECTION);
-
 vec3 mipmap_bloom(sampler2D image, vec2 coords, float dither) {
     if(fragment_cull()) discard;
     vec3 blur_sample = vec3(0.0);
     vec2 blur_radius_vec = vec2(0.1 * inv_aspect_ratio, 0.1);
 
-    int sample_c = int(clamp(BLOOM_SAMPLES * RENDER_SCALE, 2.0, 10.0));
+    int sample_c = int(clamp(BLOOM_SAMPLES * RENDER_SCALE, 2.0, 16.0));
 
     vec2 blur_radios_factor = blur_radius_vec * (1.0 / BLOOM_SAMPLES);
     float n;
     vec2 offset;
     float dither_x;
 
-    for(int i = 0; i < sample_c; i+= int(adaptFPS)) {
+    // Profile-controlled fixed sampling keeps bloom energy stable from frame
+    // to frame. Runtime FPS-based skipping caused visible brightness pumping.
+    for(int i = 0; i < sample_c; i++) {
         dither_x = i + dither;
         n = fract(dither_x * 1.6180339887) * 3.141592653589793;
         offset = vec2(cos(n), sin(n)) * dither_x * blur_radios_factor;
@@ -29,10 +27,12 @@ vec3 mipmap_bloom(sampler2D image, vec2 coords, float dither) {
         blur_sample += texture2D(image, coords - offset, -1.0).rgb;
     }
     
+    // Normalize by the samples actually taken, including reduced render
+    // scales, so bloom strength is independent of resolution and profile.
     #if COLOR_SCHEME == 11
-        blur_sample /= (BLOOM_SAMPLES * 6.0) / BLOOM_STRENGTH;
+        blur_sample *= BLOOM_STRENGTH / (float(sample_c) * 6.0);
     #else
-        blur_sample /= (BLOOM_SAMPLES * 3.0) / BLOOM_STRENGTH;
+        blur_sample *= BLOOM_STRENGTH / (float(sample_c) * 3.0);
     #endif
 
     return blur_sample;

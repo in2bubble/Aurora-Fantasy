@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.3 - emissive_materials.glsl #include "/lib/emissive_materials.glsl"
+Aurora Fantasy 5.4 - emissive_materials.glsl #include "/lib/emissive_materials.glsl"
 Emissive properties for ores, some materials, particles and entities. - Propriedades emissivas para minérios, alguns materiais, partículas e entidades. */
 
 vec3 emmisive_color = vec3(1.0);

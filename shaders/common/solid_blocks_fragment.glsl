@@ -1,4 +1,12 @@
 #include "/lib/config.glsl"
+#include "/lib/fantasy_life.glsl"
+
+#ifdef RAIN_PUDDLES
+    // Direct boolean reference required by Iris' shader-option discovery.
+    #if !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+        #define RAIN_SURFACE_PASS
+    #endif
+#endif
 
 // MAIN FUNCTION ------------------
 
@@ -12,10 +20,6 @@
 
 /* Uniforms */
 
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-uniform float frameTime;
 uniform float far;
 uniform sampler2D tex;
 uniform int isEyeInWater;
@@ -23,7 +27,6 @@ uniform float nightVision;
 uniform float rainStrength;
 uniform float wetness;
 uniform float light_mix;
-#include "/lib/screen_size.glsl"
 uniform sampler2D gaux4;
 uniform mat4 gbufferProjectionInverse;
 uniform vec3 sunPosition;
@@ -31,9 +34,11 @@ uniform sampler2D depthtex0;
 uniform float near;
 uniform mat4 gbufferProjectionMatrix;
 
-#if defined GBUFFER_BLOCK
-    uniform float frameTimeCounter;
+#if defined GBUFFER_BLOCK || defined RAIN_SURFACE_PASS || (defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA && !defined NETHER && !defined THE_END)
     uniform vec3 cameraPosition;
+#endif
+
+#if defined GBUFFER_BLOCK
     uniform mat4 gbufferModelViewInverse; 
 #endif
 
@@ -55,11 +60,6 @@ uniform mat4 gbufferProjectionMatrix;
 #endif
 
 uniform float blindness;
-
-#if MC_VERSION >= 11900
-    uniform float darknessFactor;
-    uniform float darknessLightFactor;
-#endif
 
 #ifdef MATERIAL_GLOSS
      // Don't remove
@@ -94,7 +94,7 @@ varying vec4 position;
 
 #if defined GBUFFER_BLOCK
     varying vec3 worldPos;
-#elif defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+#elif defined RAIN_SURFACE_PASS
     varying vec3 worldPos;
 #endif
 
@@ -102,12 +102,13 @@ varying vec4 position;
     varying float is_foliage;
 #endif
 
-#if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+#if defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA
+    varying float fantasy_plant_f;
+#endif
+
+#ifdef RAIN_SURFACE_PASS
     varying vec3 world_normal;
-    #if !defined GBUFFER_BLOCK
-        uniform vec3 cameraPosition;
-        uniform float frameTimeCounter;
-    #endif
+    varying vec3 puddle_sky_zenith;
     varying float no_puddle_f;
     varying float sky_light_f;
 #endif
@@ -153,29 +154,8 @@ varying vec4 position;
 #define FRAGMENT
 #include "/lib/downscale.glsl"
 
-#if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
-    #include "/lib/rain_puddles.glsl"
-    #include "/lib/ssr_noise.glsl"
-
-    // Reflectify-style puddle distribution (FBM-based organic shapes)
-    float ComputeWetnessDistribution(vec3 wPos) {
-        float nVal = ssr_fbm2D(wPos.xz * 0.05, 3);
-        return smoothstep(-0.1, 0.05, nVal);
-    }
-
-    // Reflectify-style raindrop ripple normal distortion
-    vec3 CalculateRaindropDistortion(vec3 wPos, float maskFactor) {
-        if (maskFactor < 0.01) return vec3(0.0, 1.0, 0.0);
-        float tOff1 = frameTimeCounter * 6.0;
-        float tOff2 = frameTimeCounter * 5.0;
-        float dMix = (ssr_noise2D(wPos.xz * 25.0 - tOff1) + ssr_noise2D(wPos.zx * 20.0 + tOff2)) * 0.5;
-        vec3 rippleNormal = vec3(
-            dMix * 0.08 * maskFactor * rainStrength,
-            1.0,
-            dMix * 0.08 * maskFactor * rainStrength
-        );
-        return normalize(rippleNormal);
-    }
+#ifdef RAIN_SURFACE_PASS
+    #include "/lib/fantasy_puddles.glsl"
 #endif
 
 #if defined EMMISIVE_MATERIAL || defined EMMISIVE_ORE
@@ -222,15 +202,7 @@ void main() {
             return;
         }
     #endif
-    // Toma el color puro del bloque
-    #if defined GBUFFER_ENTITIES && BLACK_ENTITY_FIX == 1
-        vec4 block_color = texture2D(tex, texcoord);
-        if(block_color.a < 0.1 && entityId != 10101) {   // Black entities bug workaround
-            discard;
-        }
-    #else
-        vec4 block_color = texture2D(tex, texcoord);
-    #endif
+    vec4 block_color = texture2D(tex, texcoord);
     
     vec4 pure_block_color = block_color;
     block_color *= tint_color;
@@ -310,62 +282,280 @@ void main() {
             #include "/lib/emissive_materials.glsl"
         #endif
 
-        // === Rain Puddles & Wet Surfaces (Reflectify RT SSR System) ===
-        // SSR output variables — declared before puddle code so they can be set, then read by writebuffers
-        vec3 ssr_normal_out = vec3(0.5, 1.0, 0.5); // Encoded UP normal (0..1 range) — default
-        float ssr_reflectivity_out = 0.0;
-        float ssr_roughness_out = 1.0;
+        float fantasy_habitat_out = 0.0;
 
-        #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+        #if defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA && defined GBUFFER_TERRAIN && !defined NETHER && !defined THE_END
+        {
+            float plantType = round(fantasy_plant_f);
+            if (plantType > 0.5) {
+                float nightAmount = day_blend_float(0.0, 0.0, 1.0)
+                    * (1.0 - rainStrength * 0.45)
+                    * (1.0 - nightVision * 0.75);
+                vec3 absolutePlantPos = position.xyz + cameraPosition;
+                vec3 plantCell = floor(absolutePlantPos * 0.5);
+                float plantPhase = fantasy_life_hash13(
+                    plantCell + 5.17);
+                float windPulse = 0.72 + 0.28 * sin(
+                    frameTimeCounter * (0.70 + float(WIND_FORCE) * 0.15)
+                    + dot(absolutePlantPos.xz, vec2(0.21, 0.16))
+                    + plantPhase * 4.31);
+                float playerDisturbance =
+                    fantasy_player_disturbance(
+                        absolutePlantPos, cameraPosition);
+                float plantRecovery =
+                    fantasy_plant_recovery_disturbance(
+                        absolutePlantPos, cameraPosition);
+                float fantasyLifeStrength = 0.80
+                    + 0.10 * clamp(
+                        float(FANTASY_LIFE_QUALITY), 1.0, 4.0);
+
+                vec3 texelColor = max(pure_block_color.rgb * tint_color.rgb, vec3(0.0));
+                float texelLuma = luma(texelColor);
+                float texelPeak = max(max(texelColor.r, texelColor.g), texelColor.b);
+                vec3 livingHue = texelColor / max(texelPeak, 0.06);
+                float greenDominance =
+                    texelColor.g - max(texelColor.r, texelColor.b);
+                float grassMask = smoothstep(0.012, 0.18, greenDominance)
+                    * smoothstep(0.025, 0.34, texelLuma);
+                float petalMask =
+                    (1.0 - smoothstep(0.0, 0.022, greenDominance))
+                    * smoothstep(0.055, 0.38, texelLuma)
+                    * smoothstep(0.10, 0.30, texelPeak);
+                float generalFlora = step(3.5, plantType);
+
+                if (plantType < 1.5 || generalFlora > 0.5) {
+                    // A shared world-space firefly visit drives the flower.
+                    // Between visits the original petal hue stays readable.
+                    float fireflyVisit = fantasy_firefly_visit(
+                        absolutePlantPos, frameTimeCounter)
+                        * fantasy_perch_selector(absolutePlantPos);
+                    float settledVisit = fireflyVisit
+                        * (1.0 - plantRecovery);
+                    vec3 visitorColor = fantasy_firefly_life_color(
+                        absolutePlantPos);
+                    float flowerSparkMask = fantasy_perch_spark_mask(
+                        absolutePlantPos);
+                    float flowerSpark = flowerSparkMask * settledVisit;
+                    vec3 flowerLight = mix(
+                        livingHue,
+                        visitorColor,
+                        0.04 + 0.14 * settledVisit);
+                    float flowerEnergy = 0.002
+                        + 0.095 * settledVisit;
+                    block_color.rgb += flowerLight * petalMask * nightAmount
+                        * flowerEnergy * fantasyLifeStrength;
+                    block_color.rgb += visitorColor * flowerSpark
+                        * nightAmount * 0.38 * fantasyLifeStrength;
+                    float flowerSourceMask = max(
+                        step(0.08, petalMask),
+                        step(0.12, flowerSparkMask));
+                    float flowerRelease = flowerSourceMask
+                        * step(0.06, fireflyVisit)
+                        * smoothstep(
+                            0.02, 0.24, playerDisturbance);
+                    fantasy_habitat_out = max(
+                        fantasy_habitat_out,
+                        max(
+                            max(petalMask, flowerSparkMask)
+                                * fireflyVisit * 0.78,
+                            flowerRelease));
+                }
+
+                if (generalFlora > 0.5) {
+                    float perchSelector = fantasy_perch_selector(
+                        absolutePlantPos);
+                    float grassVisit = fantasy_firefly_visit(
+                        absolutePlantPos, frameTimeCounter);
+                    float activeGrassVisit = perchSelector * grassVisit;
+                    float grassPerch = activeGrassVisit
+                        * (1.0 - plantRecovery);
+                    float tipMask = fantasy_plant_tip_mask(
+                        absolutePlantPos);
+                    float grassSparkMask = fantasy_perch_spark_mask(
+                        absolutePlantPos);
+                    float grassSpark = grassSparkMask * grassPerch;
+                    vec3 perchColor = fantasy_firefly_life_color(
+                        absolutePlantPos);
+                    vec3 grassLight = mix(
+                        livingHue * vec3(0.08, 0.24, 0.15),
+                        perchColor,
+                        0.30);
+                    float grassGlow = grassMask * tipMask
+                        * nightAmount * grassPerch
+                        * (0.10 + 0.06 * windPulse);
+                    block_color.rgb += grassLight * grassGlow
+                        * fantasyLifeStrength;
+                    block_color.rgb += perchColor * grassSpark
+                        * grassMask * nightAmount * 0.46
+                        * fantasyLifeStrength;
+                    float grassSourceMask = max(
+                        step(0.08, grassMask),
+                        step(0.12, grassSparkMask));
+                    float grassRelease = grassSourceMask
+                        * step(0.06, activeGrassVisit)
+                        * smoothstep(
+                            0.02, 0.24, playerDisturbance);
+                    fantasy_habitat_out = max(
+                        fantasy_habitat_out,
+                        max(
+                            max(
+                                grassMask * activeGrassVisit,
+                                grassSparkMask * activeGrassVisit)
+                                * 0.72,
+                            grassRelease));
+                } else if (plantType >= 1.5) {
+                    // Dynamic adaptive canopy lights in tree leaves (varied sizes & subtle breathing)
+                    float leafDetail = smoothstep(0.045, 0.46, texelLuma);
+                    float blossomFactor = step(2.5, plantType);
+                    vec3 orbCenter = fantasy_canopy_orb_center(absolutePlantPos);
+                    vec3 orbDelta = absolutePlantPos - orbCenter;
+                    orbDelta.y *= 1.18;
+
+                    vec3 orbHash = fantasy_life_hash33(orbCenter);
+                    float orbSizeScale = mix(0.35, 1.15, orbHash.x);
+                    float orbPulseSpeed = mix(0.65, 1.35, orbHash.y);
+                    float orbPulsePhase = frameTimeCounter * orbPulseSpeed + orbHash.z * 6.28318;
+                    float orbPulse = sin(orbPulsePhase) * 0.35 + 0.65;
+
+                    float orbMask = 1.0 - smoothstep(0.12, 1.10 * orbSizeScale, length(orbDelta));
+                    float orbVisit = fantasy_firefly_visit(orbCenter, frameTimeCounter);
+                    float orbDisturbance = fantasy_player_disturbance(orbCenter, cameraPosition);
+                    float orbRecovery = fantasy_plant_recovery_disturbance(orbCenter, cameraPosition);
+                    float orbLife = orbMask * orbVisit * (1.0 - orbRecovery) * orbPulse;
+                    float orbCore = orbMask * orbMask * orbLife;
+
+                    vec3 orbColor = fantasy_firefly_life_color(orbCenter);
+                    vec3 leafLight = mix(livingHue * vec3(0.12, 0.32, 0.22), orbColor, 0.48);
+                    float leafStrength = mix(0.06, 0.12, blossomFactor) * orbSizeScale;
+
+                    block_color.rgb += leafLight * leafDetail * nightAmount
+                        * leafStrength * orbLife * fantasyLifeStrength;
+                    block_color.rgb += orbColor * leafDetail
+                        * nightAmount * orbCore * 0.18 * orbSizeScale
+                        * fantasyLifeStrength;
+                    float canopySourceMask =
+                        step(0.10, leafDetail)
+                        * step(0.06, orbMask);
+                    float canopyRelease = canopySourceMask
+                        * step(0.06, orbVisit)
+                        * smoothstep(
+                            0.02, 0.24, orbDisturbance);
+                    fantasy_habitat_out = max(
+                        fantasy_habitat_out,
+                        max(
+                            leafDetail * orbMask * orbVisit * 0.76,
+                            canopyRelease));
+                }
+            }
+        }
+        #endif
+
+        #if defined FANTASY_LIFE_SYSTEM && (defined EMMISIVE_MATERIAL || defined EMMISIVE_ORE)
+            fantasy_habitat_out = max(
+                fantasy_habitat_out,
+                step(0.5, float(emitter_type)) * 0.78);
+        #endif
+
+        // === Aurora Fantasy rain puddles and wet surfaces ===
+        // SSR output variables — declared before puddle code so they can be set, then read by writebuffers
+        vec3 puddle_normal_out = vec3(0.5, 1.0, 0.5);
+        float puddle_mask_out = 0.0;
+        float puddle_wetness_out = 0.0;
+        float puddle_depth_out = 0.0;
+
+        #ifdef RAIN_SURFACE_PASS
         {
             // Skip puddles on hot/dry blocks (sand, magma, lava)
             float hotBlockMask = step(0.5, no_puddle_f);
-            // Sky exposure mask: only apply rain effects where sky light reaches the surface
             float skyExposure = sky_light_f;
             float upDot = world_normal.y;
-            float wetFactor = get_surface_wetness(upDot, wetness, rainStrength) * (1.0 - hotBlockMask) * skyExposure;
+            float rainAmount = max(wetness, rainStrength);
+            // Uniform weather branch: avoid paying for wave/ring/environment
+            // work in clear weather while retaining the gradual wetness fade.
+            if (rainAmount > 0.001) {
+            vec2 puddleField = getFantasyPuddleField(worldPos, upDot, rainAmount)
+                * (1.0 - hotBlockMask) * skyExposure;
+            float puddleMask = puddleField.x;
+            float puddleDepth = puddleField.y * rainAmount;
+            float puddleOpacity = puddleMask * rainAmount;
+            float surfaceWetness = smoothstep(0.30, 0.90, upDot)
+                * rainAmount * (1.0 - hotBlockMask) * skyExposure;
 
-            // Reflectify-style puddle mask using FBM noise
-            float puddleMask = get_puddle_mask(worldPos, upDot, wetness, rainStrength) * (1.0 - hotBlockMask) * skyExposure;
-            float reflectifyPuddleMask = ComputeWetnessDistribution(worldPos) * smoothstep(0.7, 0.95, upDot) * max(wetness, rainStrength * 0.5) * (1.0 - hotBlockMask) * skyExposure;
-            puddleMask = max(puddleMask, reflectifyPuddleMask);
+            // Build Aurora's storm environment once. Zenith comes from the
+            // shader's actual sky model; the horizon uses the weather fog/sky.
+            // The gradient is sampled by a world-space reflection direction,
+            // so the animation is attached to the terrain rather than the screen.
+            vec3 zenithEnvironment = max(xyz_to_rgb(puddle_sky_zenith), vec3(0.0));
+            vec3 horizonEnvironment = max(mix(fogColor, skyColor, 0.38), vec3(0.0));
+            zenithEnvironment /= vec3(1.0) + zenithEnvironment;
+            horizonEnvironment /= vec3(1.0) + horizonEnvironment;
+            zenithEnvironment *= vec3(0.96, 0.99, 1.03);
+            horizonEnvironment *= vec3(0.98, 0.99, 1.01);
 
-            // Darken wet surfaces (kept from Aurora + Reflectify style heavy darkening)
-            if (wetFactor > 0.01) {
-                block_color.rgb = apply_wetness(block_color.rgb, wetFactor);
+            // All rain-exposed terrain receives a thin, rough moving water film.
+            // It preserves the texture and stays much rougher than a deep pool.
+            float wetGround = surfaceWetness * (1.0 - puddleMask * 0.70);
+            vec3 wetGroundColor = block_color.rgb * 0.82;
+            float wetLuma = dot(wetGroundColor, vec3(0.2126, 0.7152, 0.0722));
+            wetGroundColor = mix(vec3(wetLuma), wetGroundColor, 1.14);
+            block_color.rgb = mix(block_color.rgb, wetGroundColor, wetGround);
+
+            vec3 groundViewDir = normalize(cameraPosition - worldPos);
+            float wetFilmRing;
+            vec3 wetFilmNormal = getFantasyWetFilmNormal(
+                worldPos, frameTimeCounter, length(fragpos.xyz), wetFilmRing);
+            vec3 groundWetNormal = normalize(mix(normalize(world_normal),
+                wetFilmNormal, wetGround * 0.22));
+            vec3 groundReflectDir = reflect(-groundViewDir, groundWetNormal);
+            float groundSkyHeight = sqrt(clamp(groundReflectDir.y * 0.92 + 0.08, 0.0, 1.0));
+            vec3 groundEnvironment = mix(horizonEnvironment, zenithEnvironment,
+                groundSkyHeight);
+            float groundFacing = max(dot(groundWetNormal, groundViewDir), 0.0);
+            float groundFresnel = 0.035 + 0.26 * pow(1.0 - groundFacing, 5.0);
+            block_color.rgb = mix(block_color.rgb, groundEnvironment,
+                wetGround * (0.045 + groundFresnel * 0.42));
+            block_color.rgb += groundEnvironment * wetGround * wetFilmRing
+                * rainStrength * mix(0.045, 0.105, groundFresnel);
+
+            puddle_normal_out = normalize(world_normal) * 0.5 + 0.5;
+            puddle_wetness_out = surfaceWetness;
+            puddle_depth_out = puddleDepth;
+
+            if (puddleOpacity > 0.001) {
+                float rippleLight;
+                vec3 waterNormal = getFantasyPuddleNormal(
+                    worldPos, frameTimeCounter, length(fragpos.xyz), rippleLight);
+                float depthResponse = mix(0.28, 0.76, puddleDepth);
+                vec3 mixedWorldNormal = normalize(mix(
+                    normalize(world_normal), waterNormal, puddleOpacity * depthResponse));
+
+                // Clear shallow water still reveals the original block texture;
+                // deeper centres absorb more light without turning flat grey.
+                vec3 absorbedGround = block_color.rgb * vec3(0.68, 0.73, 0.79);
+                float absorption = puddleOpacity * mix(0.20, 0.54, puddleDepth);
+                block_color.rgb = mix(block_color.rgb, absorbedGround, absorption);
+
+                vec3 worldViewDir = normalize(cameraPosition - worldPos);
+                float viewFacing = max(dot(mixedWorldNormal, worldViewDir), 0.0);
+                float waterFresnel = 0.04 + 0.96 * pow(1.0 - viewFacing, 5.0);
+                vec3 reflectionDirection = reflect(-worldViewDir, mixedWorldNormal);
+                float reflectedSkyHeight = pow(clamp(
+                    reflectionDirection.y * 0.92 + 0.08, 0.0, 1.0), 0.42);
+                vec3 environment = mix(horizonEnvironment, zenithEnvironment,
+                    reflectedSkyHeight);
+                float environmentBlend = puddleOpacity
+                    * mix(0.32, 0.72, waterFresnel)
+                    * mix(0.72, 1.0, puddleDepth);
+                block_color.rgb = mix(block_color.rgb, environment, environmentBlend);
+
+                // Raindrop rings modulate the reflected environment itself.
+                // This reads as moving water rather than a bright fake decal.
+                block_color.rgb += environment * rippleLight * puddleOpacity
+                    * rainStrength * mix(0.055, 0.12, waterFresnel);
+
+                puddle_normal_out = mixedWorldNormal * 0.5 + 0.5;
+                puddle_mask_out = puddleOpacity * mix(0.62, 1.0, puddleDepth);
             }
-            if (puddleMask > 0.01) {
-                // Reflectify style: extra darkening on puddle areas for wet look
-                block_color.rgb *= mix(1.0, 0.45, puddleMask * rainStrength);
-            }
-
-            // Compute normals and reflectivity for SSR pass
-            if (puddleMask > 0.01) {
-                // View-space normal for puddle surface
-                vec3 worldUpNormal = vec3(0.0, 1.0, 0.0);
-
-                // Add Reflectify-style rain ripple distortion
-                vec3 worldRippleNormal = CalculateRaindropDistortion(worldPos, puddleMask);
-                vec3 mixedWorldNormal = normalize(mix(worldUpNormal, worldRippleNormal, puddleMask * rainStrength * 0.7));
-
-                // Aurora rain ripples layered on top
-                #ifdef RAIN_RIPPLES
-                    vec2 ripple = get_rain_ripples(worldPos, frameTimeCounter);
-                    mixedWorldNormal = normalize(mixedWorldNormal + vec3(ripple.x * puddleMask * rainStrength * 0.5, 0.0, ripple.y * puddleMask * rainStrength * 0.5));
-                #endif
-
-                // Encode normal to 0..1 range for buffer storage
-                ssr_normal_out = mixedWorldNormal * 0.5 + 0.5;
-
-                // Reflectify style: mirror-like reflectivity on puddles
-                ssr_reflectivity_out = mix(0.0, 0.99, puddleMask * rainStrength);
-                ssr_roughness_out = mix(1.0, 0.0, puddleMask * rainStrength);
-
-                // Specular highlight from sun/moon on puddle (immediate visual feedback)
-                vec3 viewDir = normalize(fragpos.xyz);
-                vec3 reflectDir = reflect(viewDir, vec3(mixedWorldNormal.x, 1.0, mixedWorldNormal.z));
-                float sunSpec = pow(max(dot(reflectDir, normalize(sunPosition)), 0.0), 256.0);
-                block_color.rgb += direct_light_color * sunSpec * puddleMask * 0.5 * (1.0 - rainStrength * 0.5);
             }
         }
         #endif

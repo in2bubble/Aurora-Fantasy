@@ -37,7 +37,7 @@ float sun_light_strength;
 
 // --- OPTIMIZATION #2: Avoid length() in condicional ---
 // Checking the squared length (dot product) is much faster than checking the length (sqrt).
-if (dot(normal, normal) > 0.0001) {  // Workaround for undefined normals
+if (dot(normal, normal) > 0.0001) {  // Skip tangent lighting when no normal was supplied.
     normal = normalize(normal);
     sun_light_strength = dot(normal, sun_vec);
 } else {
@@ -108,11 +108,11 @@ float vis_sky_8 = vis_sky_4 * vis_sky_4;
     float omni_color_luma = luma(omni_color);
     
     #if defined SIMPLE_AUTOEXP && COLOR_SCHEME != 11
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, day_blend_float(0.7, 0.4, 0.0) / 4 * AVOID_DARK_LEVEL, 10.0);    
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, day_blend_float(0.7, 0.4, 0.0) / 4 * AVOID_DARK_LEVEL, 10.0);    
     #elif defined SIMPLE_AUTOEXP && COLOR_SCHEME == 11
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, day_blend_float(0.4, 0.45, 0.6) / 4 * AVOID_DARK_LEVEL, 10.0);
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, day_blend_float(0.4, 0.45, 0.6) / 4 * AVOID_DARK_LEVEL, 10.0);
     #else
-        float luma_ratio = clamp(AVOID_DARK_LEVEL / omni_color_luma * 0.01, 0.03125 * AVOID_DARK_LEVEL, 10.0);
+        float luma_ratio = clamp(AVOID_DARK_LEVEL / max(omni_color_luma, 0.0001) * 0.01, 0.03125 * AVOID_DARK_LEVEL, 10.0);
     #endif
     
     vec3 omni_color_min = omni_color * luma_ratio;
@@ -127,6 +127,24 @@ float vis_sky_8 = vis_sky_4 * vis_sky_4;
     #else
         omni_light = mix(omni_color_min, omni_color, vis_sky_4);
     #endif
+
+    // Match nearby terrain's calm rainy-night visibility in Distant Horizons.
+    float dh_night_amount = day_blend_float(0.0, 0.0, 1.0);
+    float dh_sky_exposure = smoothstep(0.18, 0.95, visible_sky);
+    vec3 dh_moon_ambient = vec3(0.012, 0.017, 0.028)
+        * dh_night_amount
+        * dh_sky_exposure
+        * mix(1.0, 0.82, rainStrength);
+    vec3 dh_rainy_night_fill = vec3(0.010, 0.016, 0.026)
+        * dh_night_amount
+        * rainStrength
+        * dh_sky_exposure;
+    vec3 dh_neutral_night_fill = vec3(NIGHT_NEUTRAL_FILL)
+        * dh_night_amount
+        * dh_sky_exposure
+        * mix(1.0, 0.90, rainStrength);
+    omni_light += dh_moon_ambient + dh_rainy_night_fill
+        + dh_neutral_night_fill;
 #endif
 
 if (isEyeInWater == 0) {

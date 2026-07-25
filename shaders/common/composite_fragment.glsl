@@ -28,30 +28,20 @@ uniform int isEyeInWater;
     uniform float dhFarPlane;
 #endif
 uniform ivec2 eyeBrightnessSmooth;
-uniform float frameTime;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-
-#if MC_VERSION >= 11900
-    uniform float darknessFactor;
-#endif
 
 #if !defined NETHER && !defined THE_END
     uniform vec3 sunPosition;
     uniform mat4 gbufferProjection;
     uniform mat4 gbufferModelViewInverse;
+    uniform mat4 gbufferProjectionInverse;
+    uniform vec3 cameraPosition;
 #endif
 
-// SSR uniforms (Reflectify RT system)
 #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
     uniform sampler2D colortex8; // SSR Normals from gbuffers
     uniform sampler2D colortex9; // SSR Reflectivity + Roughness from gbuffers
     uniform sampler2D depthtex2; // Depth without hand & translucents — used to skip hand pixels in SSR
-    uniform mat4 gbufferProjectionInverse;
     uniform mat4 gbufferModelView;
-    uniform vec3 cameraPosition;
-    #include "/lib/screen_size.glsl"
 #endif
 
 /* Ins / Outs */
@@ -61,11 +51,8 @@ varying vec3 direct_light_color;
 varying vec3 direct_light_strength;
 varying float exposure;
 
-
-
 /* Utility functions */
 
-#include "/lib/fps_correction.glsl"
 #include "/lib/basic_utils.glsl"
 #include "/lib/depth.glsl"
 
@@ -80,11 +67,26 @@ varying float exposure;
 #define FRAGMENT
 #include "/lib/downscale.glsl"
 
-// SSR includes (Reflectify RT system)
+// Aurora fantasy-puddle reflection system
 #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
-    #include "/lib/ssr_math.glsl"
-    #include "/lib/ssr_transformations.glsl"
-    #include "/lib/ssr_reflection.glsl"
+    #include "/lib/aurora.glsl"
+    #include "/lib/fantasy_reflections.glsl"
+#endif
+
+// Aurora fantasy fireflies system
+#include "/lib/fireflies.glsl"
+
+#if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
+float sample_fantasy_habitat(vec2 sampleCoord) {
+    vec4 habitatData = texture2D(
+        colortex9, clamp(sampleCoord, vec2(0.0), vec2(1.0)));
+    if (habitatData.z < 0.49) {
+        return 0.0;
+    }
+    return clamp(
+        (habitatData.z - 0.5) / 0.49,
+        0.0, 1.0);
+}
 #endif
 
 
@@ -139,6 +141,7 @@ float moon_fbm_low(vec2 p) {
 
 void main() {
     vec4 block_color = texture2DLod(colortex1, texcoord, 0);
+    float fireflyReactiveMask = 0.0;
     float d = texture2DLod(depthtex0, texcoord, 0).r;
     float linear_d = ld(d);
 
@@ -204,7 +207,7 @@ void main() {
         }
     #endif
 
-    // --- SCREEN SPACE SUN & MOON FALLBACK (WORLD-LOCKED) ---
+    // --- ANALYTIC SUN & MOON FOR NON-VOLUMETRIC SKY PASSES ---
     // With volumetric clouds enabled, this is drawn in deferred before clouds.
     // Sun/moon use gbufferProjection so they move with the world, not independently.
     // Only the angular RADIUS uses FOV compensation to keep disc size stable.
@@ -361,7 +364,7 @@ void main() {
         }
     #endif
 
-    // === Screen-Space Reflections (Reflectify RT SSR System) ===
+    // === Clean Aurora Fantasy puddle reflections ===
     #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
     {
         // Skip SSR on hand pixels: depthtex0 includes hand, depthtex2 excludes hand & translucents
@@ -370,38 +373,199 @@ void main() {
         bool isHandPixel = abs(handDepth - noHandDepth) > 0.0001;
 
         vec4 reflectData = texture2D(colortex9, texcoord);
-        float reflectivity = reflectData.x;
-        float roughness = reflectData.y;
+        float puddleMask = reflectData.x;
+        float puddleDepth = reflectData.w;
 
-        // Only apply SSR where gbuffers wrote reflection data (z == 0.5 marker) and NOT on hand
-        if (reflectivity > MIN_REFLECTIVITY && abs(reflectData.z - 0.5) < 0.01 && !isHandPixel) {
-            // Read the encoded normal from colortex8
-            vec3 prenormal = ssr_screen2ndc(texture2D(colortex8, texcoord).xyz);
+        if (puddleMask > 0.002 && reflectData.z >= 0.49 && !isHandPixel) {
+            vec3 worldNormal = normalize(
+                texture2D(colortex8, texcoord).xyz * 2.0 - 1.0);
+            vec3 viewNormal = normalize(mat3(gbufferModelView) * worldNormal);
+            float surfaceDepth = texture2D(depthtex2, texcoord).x;
+            vec3 viewPos = fantasyScreenToView(texcoord, surfaceDepth);
 
-            // Read depth (use depthtex2 to exclude hand geometry)
-            float ssrDepth = texture2D(depthtex2, texcoord).x;
+            // World-projected SSR prevents reflections from swimming with the
+            // camera like a screen-space image flip.
+            vec4 reflectionColor = traceFantasyReflection(
+                viewPos, viewNormal, colortex1, depthtex2);
 
-            // Transform normal from world/player space to view space
-            vec3 viewNormal = ssr_eye2view(prenormal);
+            #if (COLOR_SCHEME == 8 || COLOR_SCHEME == 11) && defined AURORA_REFLECTIONS
+                vec3 reflectViewDir = reflect(normalize(viewPos), viewNormal);
+                vec3 reflectWorldDir = normalize((gbufferModelViewInverse * vec4(reflectViewDir, 0.0)).xyz);
+                if (reflectWorldDir.y > 0.0) {
+                    vec3 auroraSky = getAurora(reflectWorldDir, sunPosition);
+                    if (luma(auroraSky) > 0.001) {
+                        reflectionColor.rgb = mix(auroraSky, reflectionColor.rgb, reflectionColor.a);
+                        reflectionColor.a = max(reflectionColor.a, 0.85 * smoothstep(0.0, 0.2, reflectWorldDir.y));
+                    }
+                }
+            #endif
 
-            // Get view-space position
-            vec3 viewPos = ssr_screen2view(texcoord, ssrDepth);
-            vec3 feetPos = ssr_view2feet(viewPos);
-            vec3 worldPos = ssr_feet2world(feetPos);
-
-            // Add roughness-based normal perturbation (Reflectify style)
-            float pixelDistance = min(1.0, length(feetPos) / 16.0);
-            float stepSize = ssr_stepify(mix(1.0/512.0, 1.0/64.0, pixelDistance), 1.0/512.0);
-            viewNormal += roughness * ssr_random3(ssr_stepify3(worldPos, stepSize));
-            viewNormal = normalize(viewNormal);
-
-            // Perform SSR ray-march (use depthtex2 so reflected rays don't hit hand)
-            vec4 reflectionColor = getReflectionColor(ssrDepth, viewNormal, viewPos, colortex1, depthtex2);
-
-            // Blend reflection into scene
+            vec3 toCamera = normalize(-viewPos);
+            float waterFresnel = 0.04 + 0.96 * pow(
+                1.0 - max(dot(viewNormal, toCamera), 0.0), 5.0);
+            float depthStrength = mix(0.68, 1.0, puddleDepth);
+            float reflectionBlend = reflectionColor.a * puddleMask
+                * depthStrength * mix(0.58, 0.92, waterFresnel);
             block_color.rgb = mix(block_color.rgb, reflectionColor.rgb,
-                reflectionColor.a * reflectivity * 0.1 * float(SSR_STRENGTH));
+                clamp(reflectionBlend, 0.0, 0.92));
         }
+    }
+    #endif
+
+
+    #if defined FANTASY_LIFE_SYSTEM && FANTASY_FIREFLIES > 0 && !defined NETHER && !defined THE_END
+    if (isEyeInWater == 0) {
+        vec4 sceneViewHomogeneous = gbufferProjectionInverse
+            * vec4(texcoord * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+        vec3 sceneViewPosition = sceneViewHomogeneous.xyz
+            / max(sceneViewHomogeneous.w, 0.00001);
+        vec3 viewRay = normalize(sceneViewPosition);
+        vec3 worldRay = normalize(
+            (gbufferModelViewInverse * vec4(viewRay, 0.0)).xyz);
+
+        float sceneDistance = is_sky
+            ? min(far, 48.0)
+            : length(sceneViewPosition);
+        vec3 visibleSurfaceWorld = cameraPosition
+            + worldRay * sceneDistance;
+        float nightAmount = day_blend_float(0.0, 0.0, 1.0);
+        float skyLight = clamp(eye_bright_smooth.y / 240.0, 0.0, 1.0);
+        float fireflyGroundY = visibleSurfaceWorld.y;
+        float fireflyGroundVisibility = 1.0;
+        float projectedGroundHabitat = 0.0;
+
+        // Sky pixels have no native surface depth, which previously disabled
+        // every volumetric firefly silhouetted against the horizon. Scan down
+        // the same screen column for visible terrain, reconstruct its world Y,
+        // and use that local surface as the swarm floor. Updating through the
+        // scan favors the lower dirt/grass surface beneath foliage silhouettes.
+        if (is_sky && nightAmount > 0.01 && worldRay.y < 0.52) {
+            #if PROFILE_QUALITY == 1
+                const int fireflyGroundSteps = 4;
+            #else
+                const int fireflyGroundSteps = 7;
+            #endif
+            for (int groundStep = 1; groundStep <= fireflyGroundSteps; groundStep++) {
+                float groundScanAmount = float(groundStep)
+                    / float(fireflyGroundSteps);
+                vec2 groundSampleCoord = vec2(
+                    texcoord.x,
+                    mix(texcoord.y, 0.055, groundScanAmount));
+                #ifdef RAIN_PUDDLES
+                    float groundDepth = texture2DLod(
+                        depthtex2, groundSampleCoord, 0).x;
+                #else
+                    float groundDepth = texture2DLod(
+                        depthtex0, groundSampleCoord, 0).x;
+                #endif
+
+                if (ld(groundDepth) < 0.9999) {
+                    vec4 groundViewHomogeneous =
+                        gbufferProjectionInverse * vec4(
+                            groundSampleCoord * 2.0 - 1.0,
+                            groundDepth * 2.0 - 1.0,
+                            1.0);
+                    vec3 groundViewPosition =
+                        groundViewHomogeneous.xyz
+                        / max(groundViewHomogeneous.w, 0.00001);
+                    vec3 groundRelativeWorld =
+                        mat3(gbufferModelViewInverse)
+                        * groundViewPosition;
+                    fireflyGroundY =
+                        cameraPosition.y + groundRelativeWorld.y;
+                    fireflyGroundVisibility = 1.0;
+
+                    #ifdef RAIN_PUDDLES
+                        projectedGroundHabitat = max(
+                            projectedGroundHabitat,
+                            sample_fantasy_habitat(
+                                groundSampleCoord));
+                    #endif
+                }
+            }
+        }
+
+        vec3 habitatColor = max(block_color.rgb, vec3(0.0));
+        float greenHabitat = clamp(
+            habitatColor.g
+                - max(habitatColor.r, habitatColor.b) * 0.62,
+            0.0, 1.0);
+        float habitatPeak = max(
+            max(habitatColor.r, habitatColor.g), habitatColor.b);
+        float habitatLow = min(
+            min(habitatColor.r, habitatColor.g), habitatColor.b);
+        float flowerHabitat = clamp(
+            (habitatPeak - habitatLow) * 0.42, 0.0, 0.35);
+        float horizonHabitat = 1.0
+            - smoothstep(0.16, 0.56, worldRay.y);
+        float materialHabitat = 0.0;
+        float nearbyMaterialHabitat = 0.0;
+        #ifdef RAIN_PUDDLES
+            materialHabitat = sample_fantasy_habitat(texcoord);
+            if (nightAmount > 0.01) {
+                vec2 habitatPixel = vec2(
+                    1.0 / viewWidth, 1.0 / viewHeight);
+                vec2 habitatOffsetX = vec2(
+                    habitatPixel.x * 13.0, 0.0);
+                vec2 habitatOffsetY = vec2(
+                    0.0, habitatPixel.y * 13.0);
+                #if PROFILE_QUALITY == 1
+                    // Two diagonal probes retain a wide vegetation catchment
+                    // with half the material-buffer reads.
+                    nearbyMaterialHabitat = max(
+                        sample_fantasy_habitat(
+                            texcoord + habitatOffsetX + habitatOffsetY),
+                        sample_fantasy_habitat(
+                            texcoord - habitatOffsetX - habitatOffsetY));
+                #else
+                    nearbyMaterialHabitat = max(
+                        max(
+                            sample_fantasy_habitat(
+                                texcoord + habitatOffsetX),
+                            sample_fantasy_habitat(
+                                texcoord - habitatOffsetX)),
+                        max(
+                            sample_fantasy_habitat(
+                                texcoord + habitatOffsetY),
+                            sample_fantasy_habitat(
+                                texcoord - habitatOffsetY)));
+                #endif
+            }
+        #endif
+        float orbitHabitat = max(
+            materialHabitat, nearbyMaterialHabitat * 0.94);
+        float releaseHabitat = max(
+            materialHabitat, nearbyMaterialHabitat);
+        float releaseAmount = smoothstep(
+            0.82, 0.98, releaseHabitat);
+        float habitatAmount = is_sky
+            ? clamp(
+                0.25 * horizonHabitat
+                    + nearbyMaterialHabitat * 0.72
+                    + projectedGroundHabitat * 0.68,
+                0.0, 1.0)
+            : clamp(
+                0.35
+                + greenHabitat * 0.40
+                + flowerHabitat * 0.30
+                + orbitHabitat * 0.85,
+                0.0, 1.0);
+
+        vec3 fireflyLighting = render_fantasy_fireflies(
+            cameraPosition,
+            worldRay,
+            sceneDistance,
+            nightAmount,
+            skyLight,
+            rainStrength,
+            habitatAmount,
+            releaseAmount,
+            fireflyGroundY,
+            fireflyGroundVisibility,
+            frameTimeCounter,
+            fireflyReactiveMask
+        );
+        block_color.rgb += fireflyLighting;
     }
     #endif
 
@@ -416,7 +580,11 @@ void main() {
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));     
         /* DRAWBUFFERS:146 */
         gl_FragData[0] = block_color;
-        gl_FragData[1] = block_color * bloom_luma;
+        // RGB remains the bloom source. Alpha carries a full-resolution
+        // firefly reactive mask; bloom only samples RGB.
+        gl_FragData[1] = vec4(
+            block_color.rgb * bloom_luma,
+            fireflyReactiveMask);
         gl_FragData[2] = vec4(exposure, 0.0, 0.0, 0.0);
     #else
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));

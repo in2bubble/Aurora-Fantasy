@@ -15,11 +15,7 @@
 uniform mat4 gbufferModelView;
 uniform float rainStrength;
 uniform float wetness;
-uniform float viewWidth;
-uniform float viewHeight;
 uniform vec4 lightningBoltPosition;
-uniform float frameTime;
-uniform int frameCounter;
 
 /* Ins / Outs */
 
@@ -65,8 +61,10 @@ void main() {
     #endif
 
     #if (V_CLOUDS > 0 && !defined UNKNOWN_DIM) && !defined NO_CLOUDY_SKY
-        float minVal = 0.95;
-        float maxVal = 1.25;
+        // Keep the dynamic weather cycle, but do not let its coverage threshold
+        // climb high enough to empty most of the sky for several minutes.
+        float minVal = 0.94;
+        float maxVal = 1.06;
         float oscillatorSpeed = WIND_FORCE;
         dynamicValue = oscillation(TotalWorldTime * 251.32741228718345, minVal, maxVal, oscillatorSpeed); // ~18000 ticks cycle
         #include "/lib/volumetric_clouds_vertex.glsl"

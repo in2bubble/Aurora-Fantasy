@@ -14,17 +14,11 @@
 /* Uniforms */
 
 uniform sampler2D gaux4;
-#include "/lib/screen_size.glsl"
 uniform float rainStrength;
 uniform mat4 gbufferProjectionInverse;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-uniform float frameTime;
 uniform vec3 sunPosition;
 uniform vec4 lightningBoltPosition;
 #if STAR_SLIDER == 2 || defined THE_END || COLOR_SCHEME == 8 || COLOR_SCHEME == 11 || STAR_SLIDER >= 1
-    uniform float frameTimeCounter;
     uniform vec3 cameraPosition;
     uniform mat4 gbufferModelViewInverse;
     uniform float sunAngle;
@@ -47,9 +41,9 @@ varying vec4 position;
 
 /* Utility functions */
 
-#if STAR_SLIDER == 2 || AA_TYPE > 0
-    #include "/lib/dither.glsl"
-#endif
+// get_sky.glsl always uses either dither13() or shifted_dither13().
+// Keep the definitions available when AA_TYPE=0 and stars are reduced/off.
+#include "/lib/dither.glsl"
 
 #if (STAR_SLIDER >= 1 || defined THE_END) && !defined NETHER
     #include "/lib/stars.glsl"

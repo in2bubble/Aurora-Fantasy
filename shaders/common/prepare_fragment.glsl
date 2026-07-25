@@ -1,4 +1,4 @@
-// Aurora Fantasy 5.3 - Prepare_fragment.glsl
+// Aurora Fantasy 5.4 - Prepare_fragment.glsl
 // Sky colors.
 
 #include "/lib/config.glsl"
@@ -17,23 +17,14 @@
 /* Uniforms */
 
 uniform mat4 gbufferProjectionInverse;
-#include "/lib/screen_size.glsl"
 uniform float rainStrength;
 uniform float wetness;
 uniform vec3 sunPosition;
 uniform float eyeAltitude;
 uniform float light_mix;
 uniform vec4 lightningBoltPosition;
-uniform float frameTime;
-
-uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 uniform mat4 gbufferModelViewInverse;
-uniform float viewWidth;
-uniform float viewHeight;
-uniform int frameCounter;
-
-/* Ins / Outs */
 
 varying vec3 up_vec;
 varying vec2 texcoord;
@@ -75,7 +66,7 @@ void main() {
         vec3 viewDir = normalize(world_pos.xyz);
         
         vec4 star_color = vec4(stars(viewDir), 1.0);
-        vec3 block_color = ZENITH_DAY_COLOR + star_color.rgb;
+        vec4 block_color = vec4(ZENITH_DAY_COLOR + star_color.rgb, 1.0);
     #elif defined NETHER
         vec3 block_color = ZENITH_DAY_COLOR;
     #else

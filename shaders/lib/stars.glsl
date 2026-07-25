@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.3 - stars.glsl
+Aurora Fantasy 5.4 - stars.glsl
 Stars render fixed in world space. - Renderização de estrelas fixas no espaço do mundo. 
 */
 

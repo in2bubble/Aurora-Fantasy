@@ -7,7 +7,11 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 /* ---------------*/
 
 #if AA_TYPE == 3
-    vec3 fast_taa(vec3 block_color, vec2 texcoord_past) {
+    vec3 fast_taa(
+        vec3 block_color,
+        vec2 texcoord_past,
+        float reactiveMask
+    ) {
         vec3 current = block_color;
 
         vec3 previous = texture2DLod(colortex3, texcoord_past, 0.0).rgb;
@@ -37,11 +41,19 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
         previous = center + delta;
         
         float blend = 0.65 + edge * 0.25;
+        // Small independently animated emitters have no geometry motion
+        // vectors. Prefer their current sample so camera motion cannot make
+        // every light wait for temporal history before becoming visible.
+        blend = mix(blend, 0.34, clamp(reactiveMask, 0.0, 1.0));
 
         return mix(current, previous, blend);
     }
 #else
-    vec3 fast_taa(vec3 current_color, vec2 texcoord_past) {
+    vec3 fast_taa(
+        vec3 current_color,
+        vec2 texcoord_past,
+        float reactiveMask
+    ) {
         if (clamp(texcoord_past, 0.0, 1.0) != texcoord_past) {
             return current_color;
         } else {
@@ -79,13 +91,20 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
             }
             previous = center + (color_vector * factor);
 
-            return mix(current_color, previous, 0.65 + (edge * 0.25));
+            float blend = 0.65 + (edge * 0.25);
+            blend = mix(
+                blend, 0.34, clamp(reactiveMask, 0.0, 1.0));
+            return mix(current_color, previous, blend);
         }
     }
 #endif
 
 
-vec4 fast_taa_depth(vec4 current_color, vec2 texcoord_past) {
+vec4 fast_taa_depth(
+    vec4 current_color,
+    vec2 texcoord_past,
+    float reactiveMask
+) {
     if (clamp(texcoord_past, 0.0, 1.0) != texcoord_past) {
         return current_color;
     } else {
@@ -123,6 +142,9 @@ vec4 fast_taa_depth(vec4 current_color, vec2 texcoord_past) {
         }
         previous = vec4(center + (color_vector * factor), previous.a);
 
-        return mix(current_color, previous, 0.65 + (edge * 0.25));
+        float blend = 0.65 + (edge * 0.25);
+        blend = mix(
+            blend, 0.34, clamp(reactiveMask, 0.0, 1.0));
+        return mix(current_color, previous, blend);
     }
 }

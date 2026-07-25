@@ -1,8 +1,6 @@
 #include "/lib/config.glsl"
 
 /* Uniforms, ins, outs */
-uniform float viewWidth;
-uniform float viewHeight;
 
 varying vec4 tint_color;
 varying vec2 texcoord;

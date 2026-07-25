@@ -1,11 +1,6 @@
 #include "/lib/config.glsl"
 
 /* Uniforms */
-
-uniform float viewHeight;
-uniform float viewWidth;
-uniform int frameCounter;
-uniform float frameTime;
 /* Ins / Outs */
 
 varying vec4 tint_color;
