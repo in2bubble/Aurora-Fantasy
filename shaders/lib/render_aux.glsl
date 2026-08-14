@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4 - render_aux.glsl
+Aurora Fantasy 5.4.1 - render_aux.glsl
 Render auxiliary calculations. - Cálculos auxiliares de renderização.
 */
 
@@ -19,16 +19,6 @@ float noise2D_grid(vec2 p) {
     vec2 i = floor(p); 
     return hash21(i);
 }
-
-/*
-float noise2D_grid_inclined(vec2 p) {
-    float shear_factor = 0.5; 
-    vec2 p_inclined = vec2(p.x + p.y * shear_factor, p.y);
-    vec2 i = floor(p_inclined); 
-    
-    return hash21(i);
-}
-Uncomment when needed. */
 
 vec3 reconstructWorldPosition(float depth, vec2 resolution) {
     vec2 ndc_xy = (gl_FragCoord.xy / RENDER_SCALE / resolution) * 2.0 - 1.0;

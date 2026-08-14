@@ -32,7 +32,6 @@ uniform mat4 gbufferProjectionInverse;
 uniform vec3 sunPosition;
 uniform sampler2D depthtex0;
 uniform float near;
-uniform mat4 gbufferProjectionMatrix;
 
 #if defined GBUFFER_BLOCK || defined RAIN_SURFACE_PASS || (defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA && !defined NETHER && !defined THE_END)
     uniform vec3 cameraPosition;
@@ -275,8 +274,7 @@ void main() {
         }
         #endif
 
-        block_color.rgb *= mix(real_light, vec3(1.0), nightVision * 0.125);
-        block_color.rgb *= mix(vec3(1.0, 1.0, 1.0), vec3(NV_COLOR_R, NV_COLOR_G, NV_COLOR_B), nightVision);
+        block_color.rgb *= night_vision_lighting(real_light, nightVision);
         
         #if defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED || defined GBUFFER_ENTITIES
             #include "/lib/emissive_materials.glsl"
@@ -296,7 +294,7 @@ void main() {
                 float plantPhase = fantasy_life_hash13(
                     plantCell + 5.17);
                 float windPulse = 0.72 + 0.28 * sin(
-                    frameTimeCounter * (0.70 + float(WIND_FORCE) * 0.15)
+                    persistentTimeSeconds * (0.70 + float(WIND_FORCE) * 0.15)
                     + dot(absolutePlantPos.xz, vec2(0.21, 0.16))
                     + plantPhase * 4.31);
                 float playerDisturbance =
@@ -327,7 +325,7 @@ void main() {
                     // A shared world-space firefly visit drives the flower.
                     // Between visits the original petal hue stays readable.
                     float fireflyVisit = fantasy_firefly_visit(
-                        absolutePlantPos, frameTimeCounter)
+                        absolutePlantPos, persistentTimeSeconds)
                         * fantasy_perch_selector(absolutePlantPos);
                     float settledVisit = fireflyVisit
                         * (1.0 - plantRecovery);
@@ -365,7 +363,7 @@ void main() {
                     float perchSelector = fantasy_perch_selector(
                         absolutePlantPos);
                     float grassVisit = fantasy_firefly_visit(
-                        absolutePlantPos, frameTimeCounter);
+                        absolutePlantPos, persistentTimeSeconds);
                     float activeGrassVisit = perchSelector * grassVisit;
                     float grassPerch = activeGrassVisit
                         * (1.0 - plantRecovery);
@@ -414,11 +412,11 @@ void main() {
                     vec3 orbHash = fantasy_life_hash33(orbCenter);
                     float orbSizeScale = mix(0.35, 1.15, orbHash.x);
                     float orbPulseSpeed = mix(0.65, 1.35, orbHash.y);
-                    float orbPulsePhase = frameTimeCounter * orbPulseSpeed + orbHash.z * 6.28318;
+                    float orbPulsePhase = persistentTimeSeconds * orbPulseSpeed + orbHash.z * 6.28318;
                     float orbPulse = sin(orbPulsePhase) * 0.35 + 0.65;
 
                     float orbMask = 1.0 - smoothstep(0.12, 1.10 * orbSizeScale, length(orbDelta));
-                    float orbVisit = fantasy_firefly_visit(orbCenter, frameTimeCounter);
+                    float orbVisit = fantasy_firefly_visit(orbCenter, persistentTimeSeconds);
                     float orbDisturbance = fantasy_player_disturbance(orbCenter, cameraPosition);
                     float orbRecovery = fantasy_plant_recovery_disturbance(orbCenter, cameraPosition);
                     float orbLife = orbMask * orbVisit * (1.0 - orbRecovery) * orbPulse;
@@ -492,6 +490,23 @@ void main() {
             zenithEnvironment *= vec3(0.96, 0.99, 1.03);
             horizonEnvironment *= vec3(0.98, 0.99, 1.01);
 
+            // A storm sky can approach numerical black at night. Real shallow
+            // water still retains diffuse sky radiance, so keep a very low,
+            // time-aware blue-grey floor instead of producing black decals.
+            vec3 puddleAmbientFloor = day_blend(
+                vec3(0.025, 0.030, 0.042),
+                vec3(0.030, 0.042, 0.055),
+                vec3(0.012, 0.022, 0.038)
+            );
+            zenithEnvironment = max(
+                zenithEnvironment,
+                puddleAmbientFloor
+            );
+            horizonEnvironment = max(
+                horizonEnvironment,
+                puddleAmbientFloor * 0.82
+            );
+
             // All rain-exposed terrain receives a thin, rough moving water film.
             // It preserves the texture and stays much rougher than a deep pool.
             float wetGround = surfaceWetness * (1.0 - puddleMask * 0.70);
@@ -503,7 +518,7 @@ void main() {
             vec3 groundViewDir = normalize(cameraPosition - worldPos);
             float wetFilmRing;
             vec3 wetFilmNormal = getFantasyWetFilmNormal(
-                worldPos, frameTimeCounter, length(fragpos.xyz), wetFilmRing);
+                worldPos, persistentTimeSeconds, length(fragpos.xyz), wetFilmRing);
             vec3 groundWetNormal = normalize(mix(normalize(world_normal),
                 wetFilmNormal, wetGround * 0.22));
             vec3 groundReflectDir = reflect(-groundViewDir, groundWetNormal);
@@ -524,7 +539,7 @@ void main() {
             if (puddleOpacity > 0.001) {
                 float rippleLight;
                 vec3 waterNormal = getFantasyPuddleNormal(
-                    worldPos, frameTimeCounter, length(fragpos.xyz), rippleLight);
+                    worldPos, persistentTimeSeconds, length(fragpos.xyz), rippleLight);
                 float depthResponse = mix(0.28, 0.76, puddleDepth);
                 vec3 mixedWorldNormal = normalize(mix(
                     normalize(world_normal), waterNormal, puddleOpacity * depthResponse));
@@ -580,7 +595,6 @@ void main() {
         block_color.rgb *= 1.5;
     #endif
 
-    // block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));
 
     #include "/src/finalcolor.glsl"
     #include "/src/writebuffers.glsl"

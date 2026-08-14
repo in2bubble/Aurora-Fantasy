@@ -105,7 +105,7 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
             current_value =
                 texture2D(
                     gaux2,
-                    (intersection_pos.xz * 0.0002777777777777778) + (frameTimeCounter * (WIND_FORCE * 0.55 + 0.5) * CLOUD_HI_FACTOR)
+                    (intersection_pos.xz * 0.0002777777777777778) + (persistentTimeSeconds * (WIND_FORCE * 0.55 + 0.5) * CLOUD_HI_FACTOR)
                 ).r;
 
 
@@ -113,7 +113,7 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                 current_value +=
                     texture2D(
                         gaux2,
-                        (intersection_pos.zx * 0.0002777777777777778) + (frameTimeCounter * (WIND_FORCE * 0.55 + 0.5) * CLOUD_LOW_FACTOR)
+                        (intersection_pos.zx * 0.0002777777777777778) + (persistentTimeSeconds * (WIND_FORCE * 0.55 + 0.5) * CLOUD_LOW_FACTOR)
                     ).r;
 
                 current_value *= 0.5;
@@ -224,6 +224,15 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
             float cloudEdge = 1.0 - smoothstep(
                 0.12, 0.78, clamp(density, 0.0, 1.0));
 
+            // Sunrise needs its own ambient response. Dense cloud bases were
+            // still using the neutral shadow palette while the surrounding sky
+            // had already become pink, which made them read as black cut-outs.
+            float sunriseCloudDistance = min(
+                abs(day_moment - 0.045),
+                abs(day_moment - 1.045));
+            float sunriseCloudLight = 1.0
+                - smoothstep(0.035, 0.17, sunriseCloudDistance);
+
             // Borrow the local sky hue at equal luminance during sunrise and
             // daytime without flattening density detail. Night deliberately
             // keeps the earlier neutral cloud palette.
@@ -242,9 +251,28 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
             float skyIrradianceFloor = underlyingSkyLuma
                 * day_blend_float(0.15, 0.12, 0.0)
                 * mix(0.68, 1.0, cloudEdge);
-            cloud_color_1 *= max(
+            cloud_color_1 = cloud_color_1 * max(
                 cloudSurfaceLuma,
                 skyIrradianceFloor) / cloudSurfaceLuma;
+
+            // Lift only the missing ambient component, then borrow the local
+            // sky hue at the same luminance. Density contrast remains intact,
+            // but sunrise clouds can no longer collapse to neutral black.
+            cloudSurfaceLuma = max(luma(cloud_color_1), 0.001);
+            float sunriseCloudFloor = underlyingSkyLuma
+                * mix(0.22, 0.31, cloudEdge);
+            cloud_color_1 = cloud_color_1 * mix(
+                1.0,
+                max(cloudSurfaceLuma, sunriseCloudFloor)
+                    / cloudSurfaceLuma,
+                sunriseCloudLight * (1.0 - rainStrength * 0.65));
+            cloudSurfaceLuma = max(luma(cloud_color_1), 0.001);
+            cloud_color_1 = mix(
+                cloud_color_1,
+                localSkyHue * cloudSurfaceLuma,
+                sunriseCloudLight
+                    * mix(0.42, 0.58, cloudEdge)
+                    * (1.0 - rainStrength * 0.65));
 
             float mainCloudOpacity =
                 cloud_value * twilight_alpha
@@ -303,7 +331,7 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                     current_value2 =
                         texture2D(
                             gaux2,
-                            ((intersection_pos_2.xz + vec2(CLOUD_X_OFFSET, 0.0)) * 0.0002777777777777778) + (frameTimeCounter * (WIND_FORCE * 0.55 + 0.5) * CLOUD_HI_FACTOR)
+                            ((intersection_pos_2.xz + vec2(CLOUD_X_OFFSET, 0.0)) * 0.0002777777777777778) + (persistentTimeSeconds * (WIND_FORCE * 0.55 + 0.5) * CLOUD_HI_FACTOR)
                         ).r;
                 #else
                     current_value2 = 0.0;
@@ -313,7 +341,7 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                     current_value2 +=
                         texture2D(
                             gaux2,
-                            ((intersection_pos_2.zx + vec2(0.0, CLOUD_X_OFFSET)) * 0.0002777777777777778) + (frameTimeCounter * (WIND_FORCE * 0.55 + 0.5) * CLOUD_LOW_FACTOR)
+                            ((intersection_pos_2.zx + vec2(0.0, CLOUD_X_OFFSET)) * 0.0002777777777777778) + (persistentTimeSeconds * (WIND_FORCE * 0.55 + 0.5) * CLOUD_LOW_FACTOR)
                         ).r;
                     current_value2 *= 0.5;
                     current_value2 = smoothstep(0.05, 0.95, current_value2);
@@ -391,6 +419,24 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                 cloud_color_2,
                 skyTintedCirrus,
                 cirrusSkyCoupling);
+
+            // Cirrus shares the same sunrise irradiance, with a slightly lower
+            // floor so the upper wisps stay lighter and more translucent.
+            cirrusSurfaceLuma = max(luma(cloud_color_2), 0.001);
+            float sunriseCirrusFloor = underlyingSkyLuma
+                * mix(0.18, 0.26, cirrusEdge);
+            cloud_color_2 = cloud_color_2 * mix(
+                1.0,
+                max(cirrusSurfaceLuma, sunriseCirrusFloor)
+                    / cirrusSurfaceLuma,
+                sunriseCloudLight * (1.0 - rainStrength * 0.65));
+            cirrusSurfaceLuma = max(luma(cloud_color_2), 0.001);
+            cloud_color_2 = mix(
+                cloud_color_2,
+                localSkyHue * cirrusSurfaceLuma,
+                sunriseCloudLight
+                    * mix(0.46, 0.62, cirrusEdge)
+                    * (1.0 - rainStrength * 0.65));
 
             // Blend the second layer with the first
             float second_layer_opacity = cloud_value_2

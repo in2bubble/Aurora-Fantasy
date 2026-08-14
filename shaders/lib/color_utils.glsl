@@ -270,8 +270,6 @@ uniform vec3 skyColor;
     #define WATER_COLOR vec3(WATER_COLOR_R, WATER_COLOR_G, WATER_COLOR_B)
 #endif
 
-#define NV_COLOR vec3(NV_COLOR_R, NV_COLOR_G, NV_COLOR_B)
-
 #include "/lib/day_blend.glsl"
 
 // Fog parameter per hour

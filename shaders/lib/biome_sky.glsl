@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4 - biome_sky.glsl #include "/lib/biome_sky.glsl"
+Aurora Fantasy 5.4.1 - biome_sky.glsl #include "/lib/biome_sky.glsl"
 Biome-based sky color calculation. Cálculo de cores do céu baseado em bioma. */
 
 uniform float swamp;

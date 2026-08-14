@@ -107,7 +107,6 @@ void main() {
         float dither = shifted_r_dither(gl_FragCoord.xy);
     #else
         float dither = r_dither(gl_FragCoord.xy);
-        // dither = 1.0;
     #endif
     
     // Avoid render unnecessary DH
@@ -195,7 +194,7 @@ void main() {
 
         real_light *= (fresnel_tex * 2.0) - 0.25;
 
-        block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125) * tint_color.rgb;
+        block_color.rgb *= night_vision_lighting(real_light, nightVision) * tint_color.rgb;
 
         block_color.rgb = water_shader_dh(fragposition, surface_normal, block_color.rgb, sky_color_reflect, norm_reflect_water_vec, fresnel, visible_sky, dither, direct_light_color);
 
@@ -263,7 +262,7 @@ void main() {
             (direct_light_strength * shadow_c * direct_light_color) * (1.0 - rainStrength * 0.75) +
             candle_color;
 
-        block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125);
+        block_color.rgb *= night_vision_lighting(real_light, nightVision);
     }
 
     #include "/src/finalcolor_dh.glsl"

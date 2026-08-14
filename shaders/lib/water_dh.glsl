@@ -51,7 +51,7 @@ Water reflection and refraction related functions (dh).
 #endif
 
 vec3 normal_waves_dh(vec3 pos) {
-    float speed = frameTimeCounter * 0.04;
+    float speed = persistentTimeSeconds * 0.04;
     vec2 wave_1 =
         texture2D(noisetex, ((pos.xy - pos.z * 0.2) * 0.1) + vec2(speed, speed)).rg;
     wave_1 = wave_1 - .5;

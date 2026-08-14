@@ -36,8 +36,28 @@ vec3 vibrance(vec3 color, float amount) {
     return saturate(color, final_sat);
 } // Only saturates low-saturation colors.
 
-float get_sat(vec4 color) {
-    float maxC = max(max(color.r, color.g), color.b);
-    float minC = min(min(color.r, color.g), color.b);
-    return maxC - minC;
+// Night Vision is an illumination aid, not a material tint. The old path
+// multiplied albedo by (0.0, 0.6, 0.2), destroying the red and blue channels.
+// Lift every lighting channel to the same floor, retain brighter authored
+// light, and gently neutralize only the added illumination.
+vec3 night_vision_lighting(vec3 sceneLight, float potionStrength) {
+    float response = clamp(potionStrength * NIGHT_VISION_BOOST, 0.0, 1.0);
+    float sceneLuma = luma(max(sceneLight, vec3(0.0)));
+    float visionFloor = NIGHT_VISION_LUMA_FLOOR;
+
+    // Concentrate the potion lift in genuinely dark illumination. The former
+    // fixed 0.77 floor also replaced already readable light and, after the
+    // night exposure pass, made terrain appear like a pale overcast day.
+    float darknessNeed = 1.0 - smoothstep(
+        visionFloor * 0.58,
+        visionFloor * 1.65,
+        sceneLuma
+    );
+    vec3 liftedLight = max(max(sceneLight, vec3(0.0)), vec3(visionFloor));
+    liftedLight = mix(
+        liftedLight,
+        vec3(luma(liftedLight)),
+        darknessNeed * 0.055
+    );
+    return mix(sceneLight, liftedLight, response * darknessNeed);
 }

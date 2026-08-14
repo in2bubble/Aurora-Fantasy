@@ -152,7 +152,7 @@ vec3 fast_raymarch(
 #endif
 
 vec3 normal_waves(vec3 pos) {
-    float speed = frameTimeCounter;
+    float speed = persistentTimeSeconds;
 
     // Rotation matrices for natural wave flow directions
     float angle1 = 0.698; // ~40 degrees

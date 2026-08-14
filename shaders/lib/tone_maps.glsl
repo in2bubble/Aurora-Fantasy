@@ -4,13 +4,6 @@ Tonemap functions.
 in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 */
 
-vec3 custom_sigmoid(vec3 color) {
-    color = 1.4 * color;
-    color = color / pow(pow(color, vec3(2.5)) + 1.0, vec3(0.4));
-
-    return pow(color, vec3(1.15));
-}
-
 vec3 custom_sigmoid_alt(vec3 color) {
     color = 1.4 * color;
     color = color / pow(pow(color, vec3(2.5)) + 1.0, vec3(0.4));
@@ -20,11 +13,6 @@ vec3 custom_sigmoid_alt(vec3 color) {
 
 vec3 Lottes(vec3 x, float expo) { // MakeUp legacy Lottes
     // Lottes 2016, "Advanced Techniques and Optimization of HDR Color Pipelines"
-    // float a = 1.3;
-    // float d = 0.997;
-    // float midIn = 0.2;
-    // float midOut = 0.24;
-
     float pow_a = pow(expo, 1.2961);
     float pow_b = pow(expo, 1.3);
     float product_a = (pow_a * 0.24) - 0.02980411421941949;

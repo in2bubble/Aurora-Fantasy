@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4 - stars.glsl
+Aurora Fantasy 5.4.1 - stars.glsl
 Stars render fixed in world space. - Renderização de estrelas fixas no espaço do mundo. 
 */
 
@@ -24,8 +24,8 @@ float StarLayer(vec2 uv, float scale, float density, float flickerSpd) {
     float rnd = star_hash(id);
     if (rnd < (1.0 - density)) return 0.0;
     
-    // Twinkling animation using frameTimeCounter
-    float twinkle = 0.6 + 0.4 * sin(frameTimeCounter * flickerSpd + rnd * 6.283);
+    // World-backed twinkling remains continuous across shader reloads.
+    float twinkle = 0.6 + 0.4 * sin(persistentTimeSeconds * flickerSpd + rnd * 6.283);
     
     // Organic offset using deterministic hashes to scatter the stars naturally
     vec2 offset = vec2(star_hash(id + 1.0), star_hash(id + 2.0)) - 0.5;

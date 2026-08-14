@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4 - end_portal.glsl #include "/lib/end_portal.glsl"
+Aurora Fantasy 5.4.1 - end_portal.glsl #include "/lib/end_portal.glsl"
 End portal render. - Renderização do portal do End. */
 
 #include "/lib/render_aux.glsl"
@@ -25,7 +25,7 @@ vec3 end_portal() {
     const vec3 C2 = vec3(0.1608, 0.3961, 0.4941);
 
     vec2 resolution = vec2(viewWidth, viewHeight);
-    float time = mod(frameTimeCounter, 1000.0);
+    float time = mod(persistentTimeSeconds, 1000.0);
 
     vec3 world_pos_current = reconstructWorldPosition(gl_FragCoord.z, resolution);
 

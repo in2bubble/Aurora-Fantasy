@@ -1,5 +1,5 @@
 vec3 normal_waves(vec3 pos) {
-    float speed = frameTimeCounter;
+    float speed = persistentTimeSeconds;
 
     // Rotation for natural wave flow
     float angle1 = 0.698;

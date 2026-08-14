@@ -73,8 +73,7 @@ void main() {
 
     vec3 real_light = computeRealLightDH(omni_light * 1.25, direct_light_color, direct_light_strength * 1.1, shadow_c, final_candle_color, rainStrength);
 
-    block_color.rgb *= mix(real_light, vec3(1.0), nightVision * 0.125);
-    block_color.rgb *= mix(vec3(1.0, 1.0, 1.0), vec3(NV_COLOR_R, NV_COLOR_G, NV_COLOR_B), nightVision);
+    block_color.rgb *= night_vision_lighting(real_light, nightVision);
 
     block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));
 

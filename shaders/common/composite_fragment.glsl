@@ -60,9 +60,7 @@ varying float exposure;
     #include "/lib/depth_dh.glsl"
 #endif
 
-#ifdef BLOOM
-    #include "/lib/luma.glsl"
-#endif
+#include "/lib/luma.glsl"
 
 #define FRAGMENT
 #include "/lib/downscale.glsl"
@@ -108,7 +106,6 @@ float moon_voronoi(vec2 x) {
         vec2 g = vec2(float(i),float(j));
         vec2 o = moon_hash22( n + g );
         // Animate? No, static moon.
-        // vec2 r = g - f + (0.5+0.5*sin(frameTimeCounter+6.2831*o));
         vec2 r = g - f + o;
         float d = dot(r,r);
         if( d<m ) m=d;
@@ -400,6 +397,31 @@ void main() {
                 }
             #endif
 
+            // SSR can report a valid geometric hit while sampling an almost
+            // black storm pixel. Fall back to a dim, cool reflection derived
+            // from the already fogged ground instead of painting a black pool.
+            float reflectedLuma = luma(max(reflectionColor.rgb, vec3(0.0)));
+            float puddleBaseLuma = max(
+                luma(max(block_color.rgb, vec3(0.0))) * 0.72,
+                day_blend_float(0.018, 0.022, 0.016)
+            );
+            vec3 puddleReflectionFallback = mix(
+                max(block_color.rgb, vec3(0.0)) * 0.72,
+                vec3(puddleBaseLuma) * vec3(0.78, 0.90, 1.08),
+                0.58
+            );
+            puddleReflectionFallback = max(
+                puddleReflectionFallback,
+                vec3(puddleBaseLuma) * vec3(0.72, 0.84, 1.0)
+            );
+            float invalidDarkReflection = 1.0
+                - smoothstep(0.008, 0.055, reflectedLuma);
+            reflectionColor.rgb = mix(
+                reflectionColor.rgb,
+                puddleReflectionFallback,
+                invalidDarkReflection * 0.92
+            );
+
             vec3 toCamera = normalize(-viewPos);
             float waterFresnel = 0.04 + 0.96 * pow(
                 1.0 - max(dot(viewNormal, toCamera), 0.0), 5.0);
@@ -407,7 +429,7 @@ void main() {
             float reflectionBlend = reflectionColor.a * puddleMask
                 * depthStrength * mix(0.58, 0.92, waterFresnel);
             block_color.rgb = mix(block_color.rgb, reflectionColor.rgb,
-                clamp(reflectionBlend, 0.0, 0.92));
+                clamp(reflectionBlend, 0.0, 0.84));
         }
     }
     #endif
@@ -562,7 +584,7 @@ void main() {
             releaseAmount,
             fireflyGroundY,
             fireflyGroundVisibility,
-            frameTimeCounter,
+            persistentTimeSeconds,
             fireflyReactiveMask
         );
         block_color.rgb += fireflyLighting;

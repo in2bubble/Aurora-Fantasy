@@ -62,7 +62,7 @@ vec3 getAurora(vec3 viewDir, vec3 sunPos) {
     
     vec3 weightedColor = vec3(0.0);
     float totalEnergy = 0.0;
-    float time = frameTimeCounter * 0.05;
+    float time = persistentTimeSeconds * 0.05;
 
     // Horizontal advection keeps ribbon altitude stable.
     p.x += time * 0.1;
@@ -93,10 +93,14 @@ vec3 getAurora(vec3 viewDir, vec3 sunPos) {
         
         // --- VISUALS ---
         float width = 1.0 + 0.4 * cos(seed + time * 0.5);
-        float glow = exp(-d * 2.0 / width); 
-        
+        // A defined ribbon core plus a broad low-energy veil lets the gradients
+        // wash naturally across the sky without becoming a flat luminous slab.
+        float ribbonCore = exp(-d * 2.25 / width);
+        float ribbonVeil = exp(-d * 0.62 / width);
         float noise = aurora_fbm(p * 0.5 + vec2(drift, i));
-        glow *= smoothstep(0.0, 1.0, noise + 0.4); 
+        float ribbonTexture = smoothstep(0.0, 1.0, noise + 0.4);
+        float glow = (ribbonCore * 0.76 + ribbonVeil * 0.07)
+            * mix(0.62, 1.0, ribbonTexture);
         
         // Keep every ribbon present while its intensity evolves independently.
         float cycle = sin(time * 0.2 + seed);
@@ -107,16 +111,47 @@ vec3 getAurora(vec3 viewDir, vec3 sunPos) {
         float alpha = smoothstep(0.0, 1.0, life); 
 
         // --- COLOR ---
-        vec3 colA, colB;
-        if (i == 1.0)      { colA = vec3(0.0, 1.0, 0.7); colB = vec3(0.0, 0.2, 1.0); } 
-        else if (i == 2.0) { colA = vec3(0.8, 0.0, 1.0); colB = vec3(1.0, 0.5, 0.0); } 
-        else if (i == 3.0) { colA = vec3(0.0, 0.8, 0.2); colB = vec3(0.0, 0.5, 0.8); } 
-        else if (i == 4.0) { colA = vec3(1.0, 0.2, 0.4); colB = vec3(0.6, 0.0, 0.8); }
-        else               { colA = vec3(0.0, 1.0, 0.9); colB = vec3(1.0, 0.7, 0.2); } 
+        // Each ribbon owns three carefully related palettes. Two independent,
+        // slow cycles keep the selected endpoints evolving without making all
+        // ribbons refresh at the same moment or return as one repeated pattern.
+        vec3 colA0, colB0, colA1, colB1, colA2, colB2;
+        if (i == 1.0) {
+            colA0 = vec3(0.08, 0.95, 0.62); colB0 = vec3(0.04, 0.62, 0.98);
+            colA1 = vec3(0.05, 0.88, 0.84); colB1 = vec3(0.12, 0.45, 0.98);
+            colA2 = vec3(0.20, 1.00, 0.72); colB2 = vec3(0.32, 0.40, 1.00);
+        } else if (i == 2.0) {
+            colA0 = vec3(0.10, 0.55, 1.00); colB0 = vec3(0.55, 0.22, 1.00);
+            colA1 = vec3(0.04, 0.78, 1.00); colB1 = vec3(0.86, 0.24, 0.96);
+            colA2 = vec3(0.30, 0.32, 1.00); colB2 = vec3(0.95, 0.28, 0.78);
+        } else if (i == 3.0) {
+            colA0 = vec3(0.06, 0.92, 0.45); colB0 = vec3(0.04, 0.84, 0.86);
+            colA1 = vec3(0.18, 1.00, 0.68); colB1 = vec3(0.10, 0.58, 1.00);
+            colA2 = vec3(0.02, 0.72, 0.68); colB2 = vec3(0.16, 0.38, 0.96);
+        } else if (i == 4.0) {
+            colA0 = vec3(0.58, 0.18, 1.00); colB0 = vec3(0.96, 0.24, 0.68);
+            colA1 = vec3(0.38, 0.24, 0.95); colB1 = vec3(0.88, 0.18, 0.92);
+            colA2 = vec3(0.70, 0.36, 1.00); colB2 = vec3(0.98, 0.34, 0.58);
+        } else {
+            colA0 = vec3(0.02, 0.90, 0.92); colB0 = vec3(0.72, 0.34, 1.00);
+            colA1 = vec3(0.10, 0.52, 1.00); colB1 = vec3(0.94, 0.28, 0.74);
+            colA2 = vec3(0.14, 0.96, 0.72); colB2 = vec3(0.56, 0.24, 0.96);
+        }
+
+        float paletteCycle = 0.5 - 0.5 * cos(time * 0.33 + seed * 0.17);
+        float paletteDrift = 0.5 - 0.5 * cos(
+            time * 0.21 - seed * 0.11 + sin(time * 0.13 + seed) * 0.65
+        );
+        vec3 colA = mix(mix(colA0, colA1, paletteCycle), colA2,
+            paletteDrift * 0.46);
+        vec3 colB = mix(mix(colB0, colB1, paletteDrift), colB2,
+            paletteCycle * 0.42);
         
-        // A cosine-eased ping-pong has zero slope at both palette endpoints,
-        // so neighboring ribbons cannot expose a hard color transition.
-        float colorPhase = 0.5 - 0.5 * cos(p.x * 0.2 + drift + 1.5707963268);
+        // A slow cosine-eased phase bends gently along the ribbon. The FBM term
+        // adds organic color movement without creating hard palette seams.
+        float colorSignal = p.x * 0.15 + p.y * 0.085
+            + wave_center * 0.12 + drift * 0.55 + noise * 1.10
+            + time * (0.055 + i * 0.009);
+        float colorPhase = 0.5 - 0.5 * cos(colorSignal);
         vec3 layerColor = mix(colA, colB, colorPhase);
         
         // --- ACCUMULATE ---
@@ -140,19 +175,15 @@ vec3 getAurora(vec3 viewDir, vec3 sunPos) {
     // Preserve the original soft-additive response at low intensity while
     // rolling off overlaps smoothly before they clip in the post-process.
     vec3 blendedColor = weightedColor / max(totalEnergy, 0.0001);
-    float softEnergy = 1.0 - exp(-totalEnergy * 0.6);
+    float softEnergy = 1.0 - exp(-totalEnergy * 0.52);
 
     // Brightness tuned per quality profile for vividness & bloom
     #if PROFILE_QUALITY == 1
-        float brightness = 0.72; 
+        float brightness = 0.58;
     #else
-        float brightness = 0.88; 
+        float brightness = 0.70;
     #endif
     
-    // Desaturating the small remnant avoids vivid green/purple bands bleeding
-    // through a quiet overcast night.
-    blendedColor = mix(blendedColor, vec3(luma(blendedColor)), rainVeil * 0.72);
-
     return blendedColor * softEnergy * horizonFade * nightFactor
         * brightness * weatherVisibility;
 }

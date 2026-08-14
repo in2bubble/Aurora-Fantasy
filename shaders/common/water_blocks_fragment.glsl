@@ -141,13 +141,11 @@ void main() {
             float dither = shifted_r_dither(gl_FragCoord.xy);
         #else
             float dither = r_dither(gl_FragCoord.xy);
-            // dither = 0.0;
         #endif
     #else
         float dither = 1.0;
     #endif
 
-    // vec4 block_color = texture2D(tex, texcoord);
     vec4 block_color;
     vec3 real_light;
 
@@ -210,7 +208,7 @@ void main() {
 
             real_light *= (fresnel_tex * 2.0) - 0.25;
 
-            block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125) * tint_color.rgb;
+            block_color.rgb *= night_vision_lighting(real_light, nightVision) * tint_color.rgb;
 
             block_color.rgb = water_shader(fragposition, surface_normal, block_color.rgb, sky_color_reflect, norm_reflect_water_vec, fresnel, visible_sky, dither, direct_light_color);
 
@@ -304,8 +302,8 @@ void main() {
                 float foam_mask = smoothstep(foam_width, 0.0, foam_distance);
 
                 // Animated foam pattern using noise
-                vec2 foam_coord1 = worldposition.xz * 0.4 + vec2(frameTimeCounter * 0.03, frameTimeCounter * 0.02);
-                vec2 foam_coord2 = worldposition.xz * 0.7 - vec2(frameTimeCounter * 0.02, frameTimeCounter * 0.04);
+                vec2 foam_coord1 = worldposition.xz * 0.4 + vec2(persistentTimeSeconds * 0.03, persistentTimeSeconds * 0.02);
+                vec2 foam_coord2 = worldposition.xz * 0.7 - vec2(persistentTimeSeconds * 0.02, persistentTimeSeconds * 0.04);
                 float foam_noise1 = texture2D(noisetex, foam_coord1).r;
                 float foam_noise2 = texture2D(noisetex, foam_coord2).r;
                 float foam_pattern = foam_noise1 * 0.6 + foam_noise2 * 0.4;
@@ -353,7 +351,7 @@ void main() {
             (direct_light_strength * shadow_c * direct_light_color) * (1.0 - rainStrength * 0.75) +
             candle_color;
 
-        block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125);
+        block_color.rgb *= night_vision_lighting(real_light, nightVision);
 
         if(block_type > 1.5) {  // Glass
             float sat;
