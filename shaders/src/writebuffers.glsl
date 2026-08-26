@@ -10,7 +10,7 @@
         // Minecraft 26.2 / Iris 1.11 executes prepare as a real fullscreen pass.
         // The visible sky is subsequently rendered at full resolution by
         // gbuffers_skybasic, so writing colortex1 here only duplicates that
-        // work.  Keep just the procedural fog lookup (gaux4 / colortex7).
+        // work. Keep just the procedural fog lookup (gaux4 / colortex7).
         /* DRAWBUFFERS:7 */
         block_color = clamp(block_color, vec3(0.0), vec3(50.0));
         gl_FragData[0] = vec4(block_color, 1.0);
@@ -24,23 +24,32 @@
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));
         gl_FragData[0] = block_color;
         gl_FragData[1] = block_color;
-    #elif defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
-        /* DRAWBUFFERS:189 */
+    #elif defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && defined GBUFFER_TERRAIN
+        /* DRAWBUFFERS:1890 */
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));
         gl_FragData[0] = block_color;
-        gl_FragData[1] = vec4(puddle_normal_out, 1.0);
+        gl_FragData[1] = vec4(
+            puddle_normal_out,
+            puddle_surface_distance_out);
         gl_FragData[2] = vec4(
             puddle_mask_out,
-            puddle_wetness_out,
+            puddle_ssr_patch_out,
             0.5 + 0.49 * clamp(fantasy_habitat_out, 0.0, 1.0),
             puddle_depth_out);
-    #elif defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_HAND || defined GBUFFER_ENTITIES)
-        // Clear SSR buffers for hand/entities so puddle reflections don't bleed through
-        /* DRAWBUFFERS:189 */
+        gl_FragData[3] = vec4(
+            puddle_local_light_out, 0.0, 0.0, 1.0);
+    #elif defined RAIN_PUDDLES && !defined NETHER && !defined THE_END && (defined GBUFFER_HAND || defined GBUFFER_ENTITIES || defined GBUFFER_TEXTURED)
+        // Clear puddle ownership over entities and particles. These auxiliary
+        // targets must use alpha 1: player skin layers are alpha blended, so vec4(0.0)
+        // performs a zero-alpha no-op and leaves the terrain puddle data behind
+        // the model. That stale data was the coloured/transparent-looking
+        // layer crossing the player whenever they stood over a puddle.
+        /* DRAWBUFFERS:1890 */
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));
         gl_FragData[0] = block_color;
-        gl_FragData[1] = vec4(0.0);
-        gl_FragData[2] = vec4(0.0);
+        gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragData[2] = vec4(0.0, 0.0, 0.0, 1.0);
+        gl_FragData[3] = vec4(0.0, 0.0, 0.0, 1.0);
     #else
         /* DRAWBUFFERS:1 */
         block_color = clamp(block_color, vec4(0.0), vec4(vec3(50.0), 1.0));

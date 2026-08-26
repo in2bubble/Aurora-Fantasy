@@ -10,7 +10,6 @@
 #include "/lib/color_utils.glsl"
 #include "/lib/fantasy_rain.glsl"
 
-uniform sampler2D gtexture;
 uniform float rainStrength;
 
 varying vec2 texUV;
@@ -19,8 +18,6 @@ varying float viewDistance;
 varying vec2 weatherWorldXZ;
 
 void main() {
-    vec4 vanillaTex = texture2D(gtexture, texUV) * color;
-
     // Aurora Fantasy native time-of-day color blending
     vec3 dayCore = vec3(0.38, 0.42, 0.46);
     vec3 sunsetCore = vec3(0.42, 0.38, 0.36);
@@ -38,8 +35,7 @@ void main() {
     float edgeHighlight;
 
     getFantasyRain(texUV, weatherWorldXZ, nightAmount,
-        viewDistance, vanillaTex.a,
-        rainMask, innerCore, edgeHighlight);
+        viewDistance, rainMask, innerCore, edgeHighlight);
 
     float vertexRainLuma = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec3 neutralVertexTint = mix(vec3(vertexRainLuma), color.rgb, 0.20);
@@ -48,7 +44,8 @@ void main() {
                    * neutralVertexTint * 1.15;
 
     float rainAlpha = rainMask * (0.26 + innerCore * 0.12)
-                    * WEATHER_OPACITY * mix(1.0, 1.10, nightAmount);
+                    * WEATHER_OPACITY * mix(1.0, 1.10, nightAmount)
+                    * color.a;
 
     if (rainAlpha <= 0.003) discard;
 

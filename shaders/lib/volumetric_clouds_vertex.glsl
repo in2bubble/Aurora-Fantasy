@@ -98,7 +98,7 @@ dark_cloud_color = mix(
 // the crushed-black patches produced by the very dark zenith palette.
 float night_cloud_amount = day_blend_float(0.0, 0.0, 1.0);
 // Overcast nights scatter moon/sky light instead of crushing cloud detail.
-vec3 moon_cloud_floor = vec3(0.048, 0.078, 0.118)
+vec3 moon_cloud_floor = vec3(0.024, 0.039, 0.061)
     * mix(1.0, 1.10, rainStrength);
 float dark_cloud_luma = luma(dark_cloud_color);
 float dark_recovery = night_cloud_amount

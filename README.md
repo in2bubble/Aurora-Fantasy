@@ -1,4 +1,4 @@
-# Aurora Fantasy 5.4.1
+# Aurora Fantasy 5.4.2
 
 Aurora Fantasy is a fantasy shader pack for Minecraft Java Edition,
 shaped around magical skies, atmospheric lighting, and a vivid dreamlike style.

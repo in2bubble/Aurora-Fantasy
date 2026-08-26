@@ -3,7 +3,7 @@
  / /___/ /  / / / _/  
 /____/___/ /_/ /___/  
                       
-Aurora Fantasy 5.4.1 - current_sky_color.glsl #include "/src/current_sky_color.glsl"
+Aurora Fantasy 5.4.2 - current_sky_color.glsl #include "/src/current_sky_color.glsl"
 Sky color calculation. - Cálculo da cor do céu. */
 
 bool check = (lightningBoltPosition.w > 0.001);

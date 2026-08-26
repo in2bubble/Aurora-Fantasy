@@ -210,9 +210,16 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
 
         #if CLOUD_VOL_STYLE == 0
             float twilight_alpha = day_blend_float(0.88, 1.0, 0.42);
-            // Keep the refined daylight treatment, but restore the old sparse
-            // night presentation so clouds never compete with the aurora.
+            float rainyNightClouds = rainStrength
+                * day_blend_float(0.0, 0.0, 1.0);
+            // Clear nights remain sparse, but a rainy night must retain the
+            // storm volume. Previously the unconditional 12% night presence
+            // erased almost every cloud and left a single-colour sky gradient.
             float nightCloudPresence = day_blend_float(1.0, 1.0, 0.12);
+            nightCloudPresence = mix(
+                nightCloudPresence, 0.76, rainyNightClouds);
+            twilight_alpha = max(
+                twilight_alpha, rainyNightClouds * 0.72);
             vec3 underlyingSky = max(block_color, vec3(0.0));
             float underlyingSkyLuma = max(luma(underlyingSky), 0.001);
             vec3 perceptualSky = sqrt(underlyingSky);
@@ -223,6 +230,19 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                 vec3(1.72));
             float cloudEdge = 1.0 - smoothstep(
                 0.12, 0.78, clamp(density, 0.0, 1.0));
+
+            // Derive storm-cloud luminance from the local sky while keeping
+            // density contrast: dense bases are darker, thin edges catch more
+            // diffuse moon/twilight light. This reveals cloud drawings without
+            // making the entire night sky grey.
+            vec3 rainyNightCloudColor = max(
+                underlyingSky * mix(0.48, 1.14, cloudEdge),
+                vec3(0.010, 0.016, 0.027)
+                    * mix(0.72, 1.28, cloudEdge));
+            cloud_color_1 = mix(
+                cloud_color_1,
+                rainyNightCloudColor,
+                rainyNightClouds * 0.86);
 
             // Sunrise needs its own ambient response. Dense cloud bases were
             // still using the neutral shadow palette while the surrounding sky
@@ -278,7 +298,8 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                 cloud_value * twilight_alpha
                 * clamp(
                     (view_vector.y - 0.025)
-                        * mix(50.0, 6.0, rainStrength),
+                        * mix(mix(50.0, 6.0, rainStrength),
+                            13.0, rainyNightClouds),
                     0.0, 1.0)
                 * (1.0 - arid * rainStrength)
                 * nightCloudPresence
@@ -408,7 +429,13 @@ vec3 get_cloud(vec3 view_vector, vec3 block_color, float bright, float dither, v
                 mix(cloud_color_2, cloud_color_2 + light_color * day_blend_float(0.0, 0.5, 1.0), (pow(cloud_value_2, 0.1)) * bright * bright * bright * (1.0 - rainStrength));
 
             float twilight_alpha_2 = day_blend_float(0.78, 0.90, 0.28);
+            float rainyNightCirrus = rainStrength
+                * day_blend_float(0.0, 0.0, 1.0);
             float nightCirrusPresence = day_blend_float(1.0, 1.0, 0.08);
+            nightCirrusPresence = mix(
+                nightCirrusPresence, 0.34, rainyNightCirrus);
+            twilight_alpha_2 = max(
+                twilight_alpha_2, rainyNightCirrus * 0.38);
             float cirrusEdge = 1.0 - smoothstep(
                 0.10, 0.74, clamp(density_2, 0.0, 1.0));
             float cirrusSurfaceLuma = max(luma(cloud_color_2), 0.001);

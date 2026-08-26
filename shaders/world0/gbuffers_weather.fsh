@@ -8,9 +8,10 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 #include "/lib/config.glsl"
 #include "/lib/fantasy_rain.glsl"
 
-uniform sampler2D gtexture;
 uniform int worldTime;
 uniform float rainStrength;
+uniform vec3 fogColor;
+uniform vec3 skyColor;
 
 varying vec2 texUV;
 varying vec4 color;
@@ -18,50 +19,65 @@ varying float viewDistance;
 varying vec2 weatherWorldXZ;
 
 void main() {
-    vec4 vanillaTex = texture2D(gtexture, texUV) * color;
-
-    float wt = float(worldTime);
-    float dayFactor       = max(1.0 - smoothstep(10000.0, 12500.0, wt),
-                                smoothstep(23000.0, 24000.0, wt));
-    float sunsetFactor    = smoothstep(10000.0, 11500.0, wt)
-                          * (1.0 - smoothstep(12500.0, 14000.0, wt));
-    float nightFactor     = smoothstep(12500.0, 14500.0, wt)
+    float wt = mod(float(worldTime), 24000.0);
+    float nightRainAmount = smoothstep(12500.0, 14500.0, wt)
                           * (1.0 - smoothstep(22000.0, 24000.0, wt));
-    float deepNightFactor = smoothstep(16000.0, 18000.0, wt)
-                          * (1.0 - smoothstep(20000.0, 22000.0, wt));
-
-    vec3 dayCore   = vec3(0.38, 0.40, 0.42);
-    vec3 dayEdge   = vec3(0.66, 0.68, 0.70);
-    vec3 sunsetCore = vec3(0.40, 0.38, 0.36);
-    vec3 sunsetEdge = vec3(0.60, 0.58, 0.55);
-    vec3 nightCore  = vec3(0.28, 0.30, 0.34);
-    vec3 nightEdge  = vec3(0.52, 0.55, 0.60);
-    vec3 deepNightCore = vec3(0.24, 0.26, 0.30);
-    vec3 deepNightEdge = vec3(0.45, 0.48, 0.54);
-
-    vec3 blendCore = dayCore * dayFactor + sunsetCore * sunsetFactor + nightCore * nightFactor + deepNightCore * deepNightFactor;
-    vec3 blendEdge = dayEdge * dayFactor + sunsetEdge * sunsetFactor + nightEdge * nightFactor + deepNightEdge * deepNightFactor;
-    float totalFactor = max(dayFactor + sunsetFactor + nightFactor + deepNightFactor, 0.001);
-    blendCore /= totalFactor;
-    blendEdge /= totalFactor;
-
-    float nightRainAmount = clamp(nightFactor + deepNightFactor, 0.0, 1.0);
     float rainMask;
     float innerCore;
     float edgeHighlight;
     getFantasyRain(texUV, weatherWorldXZ, nightRainAmount,
-        viewDistance, vanillaTex.a,
-        rainMask, innerCore, edgeHighlight);
+        viewDistance, rainMask, innerCore, edgeHighlight);
 
-    float vertexRainLuma = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
-    vec3 neutralVertexTint = mix(
-        vec3(vertexRainLuma), color.rgb, 0.18);
-    vec3 rainColor = mix(blendCore, blendEdge, edgeHighlight * 0.28)
-                   * mix(0.90, 1.06, innerCore)
-                   * neutralVertexTint * 1.12;
+    // Use the atmosphere which is actually being rendered instead of a fixed
+    // clock palette. Fog represents the horizon and skyColor the cloud/zenith
+    // environment, so sunrise, overcast daylight and night inherit the right
+    // hue automatically.
+    vec3 environment = clamp(mix(fogColor, skyColor, 0.58),
+                             vec3(0.012), vec3(1.0));
+    float environmentLuma = dot(environment,
+        vec3(0.2126, 0.7152, 0.0722));
+    vec3 environmentTint = mix(vec3(environmentLuma), environment, 0.62);
 
-    float rainAlpha = rainMask * (0.26 + innerCore * 0.12)
-                    * WEATHER_OPACITY * mix(1.0, 1.08, nightRainAmount);
+    // A transparent cylindrical drop has a refracted core and a brighter
+    // Fresnel rim. Swap the useful contrast according to scene luminance:
+    // dark core over bright clouds, silver-blue core over the night sky.
+    float brightBackdrop = smoothstep(0.30, 0.62, environmentLuma);
+    vec3 darkRefracted = environmentTint * 0.40 + vec3(0.025, 0.032, 0.040);
+    vec3 nightRefracted = mix(environmentTint,
+                              vec3(0.34, 0.42, 0.52), 0.72);
+    vec3 refractedCore = mix(nightRefracted, darkRefracted, brightBackdrop);
+
+    vec3 dayReflection = mix(environmentTint,
+                             vec3(0.68, 0.74, 0.80), 0.52);
+    vec3 nightReflection = mix(environmentTint,
+                               vec3(0.40, 0.49, 0.59), 0.62);
+    vec3 reflectedEdge = mix(nightReflection, dayReflection,
+        smoothstep(0.14, 0.54, environmentLuma));
+
+    // Retain a trace of Minecraft's local weather tint without allowing the
+    // vertex colour to darken the drop a second time.
+    float vertexPeak = max(max(color.r, color.g), max(color.b, 0.001));
+    vec3 vertexHue = color.rgb / vertexPeak;
+    refractedCore *= mix(vec3(1.0), vertexHue, 0.08);
+    reflectedEdge *= mix(vec3(1.0), vertexHue, 0.12);
+
+    float rimResponse = clamp(edgeHighlight * 0.66, 0.0, 1.0);
+    vec3 rainColor = mix(refractedCore, reflectedEdge, rimResponse);
+    rainColor *= mix(0.94, 1.035, innerCore)
+               * mix(1.0, 1.055, nightRainAmount);
+
+    // Only a modest coverage increase over the original rain. Quantity still
+    // reads clearly, while overlapping weather volumes no longer form a dense
+    // white curtain.
+    float opticalCoverage = 0.30 + innerCore * 0.115
+                          + edgeHighlight * 0.075;
+    float stormPresence = mix(0.84, 0.96,
+        smoothstep(0.08, 0.80, rainStrength));
+    // color.a is Minecraft's per-weather-card spatial fade. Restoring it is
+    // what keeps rain inside the world instead of reading as a screen texture.
+    float rainAlpha = rainMask * opticalCoverage * WEATHER_OPACITY
+                    * stormPresence * mix(1.0, 1.06, nightRainAmount)
+                    * color.a;
     if (rainAlpha <= 0.003) discard;
 
     /* DRAWBUFFERS:1 */

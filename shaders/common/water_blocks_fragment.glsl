@@ -237,17 +237,9 @@ void main() {
                 water_distance_raw = 0.5;
             }
 
-            // Aurora palette: shallow teal → deep indigo
-            vec3 shallow_color = vec3(0.06, 0.18, 0.28);  // Bright aurora teal
-            vec3 deep_color = vec3(0.05, 0.04, 0.18);      // Deep indigo-violet
-
-            // Time-of-day tinting
-            vec3 day_tint = vec3(0.04, 0.15, 0.25);        // Crystal clear blue
-            vec3 sunset_tint = vec3(0.12, 0.08, 0.18);      // Warm violet-amber
-            vec3 night_tint = vec3(0.02, 0.06, 0.14);       // Deep midnight aurora
-
-            vec3 time_tint = day_blend(sunset_tint, day_tint, night_tint);
-            vec3 aurora_water_color = mix(shallow_color, deep_color, water_distance_raw) + time_tint * 0.3;
+            // Shared with rain puddles: shallow/deep response and all
+            // time-of-day transitions now come from one canonical palette.
+            vec3 aurora_water_color = auroraWaterBodyColor(water_distance_raw);
 
             #if WATER_COLOR_SOURCE == 0
                 block_color.rgb = water_texture * real_light * aurora_water_color;

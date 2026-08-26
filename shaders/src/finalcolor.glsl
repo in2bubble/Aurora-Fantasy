@@ -10,6 +10,16 @@ float fog_correction;
     fog_correction = 1.0;
 #endif
 
+#if !defined NETHER && !defined THE_END
+    // At rainy night the procedural fog is already in the final sky exposure
+    // domain. Directional sun correction brightened it a second time and made
+    // distant terrain look like a luminous cut-out against the dark zenith.
+    float rainy_night_fog_balance = rainStrength
+        * day_blend_float(0.0, 0.0, 1.0);
+    fog_correction = mix(
+        fog_correction, 1.0, rainy_night_fog_balance);
+#endif
+
 
 float fog_adj2 = mix(fog_adj, clamp(fog_adj * 1.75, 0.0, 2.0 - final_sun_factor), final_sun_factor);
 

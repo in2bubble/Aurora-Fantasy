@@ -1,4 +1,4 @@
-# Aurora Fantasy 5.4.1 - English
+# Aurora Fantasy 5.4.2 - English
 
 # ═══════════════════════════════════════════
 #  Profiles
@@ -435,6 +435,9 @@ option.WATER_COLOR_G=Water G
 
 option.WEATHER_OPACITY=Rain Opacity
 suffix.WEATHER_OPACITY=x
+
+option.CAMERA_RAIN_DROPS=Camera Rain Droplets
+option.CAMERA_RAIN_DROPS.comment=Show sliding rain beads and flowing water trails on the player's camera lens. Disable this without affecting world rain or puddles.
 
 # ═══════════════════════════════════════════
 #  Effects

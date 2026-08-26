@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4.1 - render_aux.glsl
+Aurora Fantasy 5.4.2 - render_aux.glsl
 Render auxiliary calculations. - Cálculos auxiliares de renderização.
 */
 

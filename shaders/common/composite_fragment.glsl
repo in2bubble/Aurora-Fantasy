@@ -40,8 +40,10 @@ uniform ivec2 eyeBrightnessSmooth;
 #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
     uniform sampler2D colortex8; // SSR Normals from gbuffers
     uniform sampler2D colortex9; // SSR Reflectivity + Roughness from gbuffers
+    uniform sampler2D colortex0; // Puddle-local torch/emissive light strength
     uniform sampler2D depthtex2; // Depth without hand & translucents — used to skip hand pixels in SSR
     uniform mat4 gbufferModelView;
+    uniform bool firstPersonCamera;
 #endif
 
 /* Ins / Outs */
@@ -69,6 +71,7 @@ varying float exposure;
 #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
     #include "/lib/aurora.glsl"
     #include "/lib/fantasy_reflections.glsl"
+    #include "/lib/water_palette.glsl"
 #endif
 
 // Aurora fantasy fireflies system
@@ -364,72 +367,275 @@ void main() {
     // === Clean Aurora Fantasy puddle reflections ===
     #if defined RAIN_PUDDLES && !defined NETHER && !defined THE_END
     {
-        // Skip SSR on hand pixels: depthtex0 includes hand, depthtex2 excludes hand & translucents
-        float handDepth = texture2DLod(depthtex0, texcoord, 0).x;
-        float noHandDepth = texture2DLod(depthtex2, texcoord, 0).x;
-        bool isHandPixel = abs(handDepth - noHandDepth) > 0.0001;
+        // depthtex2 owns the terrain surface carrying the puddle.  If the final
+        // visible depth differs, an entity, player skin layer, hand, or other
+        // foreground surface covers that terrain pixel.  Never composite the
+        // puddle through it.  This is camera-mode independent and does not
+        // remove mobs from reflection rays elsewhere on the puddle.
+        float visibleDepth = texture2DLod(depthtex0, texcoord, 0).x;
+        float terrainDepth = texture2DLod(depthtex2, texcoord, 0).x;
+        bool hasForegroundSurface =
+            abs(visibleDepth - terrainDepth) > 0.000075;
 
         vec4 reflectData = texture2D(colortex9, texcoord);
         float puddleMask = reflectData.x;
+        float ssrPatchMask = reflectData.y;
         float puddleDepth = reflectData.w;
+        float localPuddleLight = texture2D(colortex0, texcoord).r;
+        float localPuddleLightMask = smoothstep(
+            0.035, 0.42, localPuddleLight);
+        vec4 puddleNormalData = texture2D(colortex8, texcoord);
+        float surfaceDepth = terrainDepth;
+        vec3 viewPos = fantasyScreenToView(texcoord, surfaceDepth);
+        float visibleSurfaceDistance = clamp(
+            log2(1.0 + length(viewPos)) / log2(1.0 + far),
+            0.0, 1.0);
+        float puddleSurfaceDelta = abs(
+            puddleNormalData.a - visibleSurfaceDistance);
+        bool ownsPuddleData = puddleNormalData.a > 0.0001
+            && puddleSurfaceDelta < 0.00045;
 
-        if (puddleMask > 0.002 && reflectData.z >= 0.49 && !isHandPixel) {
+        if (puddleMask > 0.002 && reflectData.z >= 0.49
+                && !hasForegroundSurface && ownsPuddleData) {
             vec3 worldNormal = normalize(
-                texture2D(colortex8, texcoord).xyz * 2.0 - 1.0);
+                puddleNormalData.xyz * 2.0 - 1.0);
             vec3 viewNormal = normalize(mat3(gbufferModelView) * worldNormal);
-            float surfaceDepth = texture2D(depthtex2, texcoord).x;
-            vec3 viewPos = fantasyScreenToView(texcoord, surfaceDepth);
 
-            // World-projected SSR prevents reflections from swimming with the
-            // camera like a screen-space image flip.
-            vec4 reflectionColor = traceFantasyReflection(
-                viewPos, viewNormal, colortex1, depthtex2);
+            // Stable environment reflection for the whole pool. Unlike the old
+            // constant blue value, this samples an actual horizon-to-zenith
+            // storm gradient with the animated water normal, so the night-water
+            // texture remains visible even where an SSR ray does not hit.
+            vec3 worldViewIncident = normalize(
+                mat3(gbufferModelViewInverse) * normalize(viewPos));
+            vec3 environmentDirection = reflect(
+                worldViewIncident, worldNormal);
+            float environmentSkyHeight = sqrt(clamp(
+                environmentDirection.y * 0.92 + 0.08, 0.0, 1.0));
+            vec3 stormHorizon = max(
+                mix(fogColor, skyColor, 0.18), vec3(0.0));
+            vec3 stormZenith = max(
+                mix(skyColor, fogColor, 0.34), vec3(0.0));
+            vec3 currentWeatherSky = mix(
+                stormHorizon, stormZenith, environmentSkyHeight);
 
-            #if (COLOR_SCHEME == 8 || COLOR_SCHEME == 11) && defined AURORA_REFLECTIONS
-                vec3 reflectViewDir = reflect(normalize(viewPos), viewNormal);
-                vec3 reflectWorldDir = normalize((gbufferModelViewInverse * vec4(reflectViewDir, 0.0)).xyz);
-                if (reflectWorldDir.y > 0.0) {
-                    vec3 auroraSky = getAurora(reflectWorldDir, sunPosition);
-                    if (luma(auroraSky) > 0.001) {
-                        reflectionColor.rgb = mix(auroraSky, reflectionColor.rgb, reflectionColor.a);
-                        reflectionColor.a = max(reflectionColor.a, 0.85 * smoothstep(0.0, 0.2, reflectWorldDir.y));
-                    }
-                }
-            #endif
+            // Weather-aware night palette for water only. At early night this
+            // removes the obsolete warm sun-direction tint; at midnight it
+            // supplies the small amount of diffuse moon/cloud radiance needed
+            // to reveal moving normals. It never replaces the rendered sky.
+            float puddleNightAmount = day_blend_float(0.0, 0.0, 1.0);
+            float midnightWindow = smoothstep(0.62, 0.72, day_moment)
+                * (1.0 - smoothstep(0.90, 0.985, day_moment));
+            float stormNightBalance = rainStrength
+                * smoothstep(0.025, 0.62, puddleNightAmount);
+            float weatherSkyLuma = dot(
+                currentWeatherSky, vec3(0.2126, 0.7152, 0.0722));
+            vec3 neutralNightSky = max(
+                vec3(weatherSkyLuma)
+                    * auroraWaterPaletteHue(puddleDepth * 0.36),
+                mix(vec3(0.012, 0.019, 0.030),
+                    vec3(0.016, 0.026, 0.043), midnightWindow));
+            currentWeatherSky = mix(
+                currentWeatherSky, neutralNightSky,
+                stormNightBalance
+                * mix(0.92, 0.72, localPuddleLightMask));
 
-            // SSR can report a valid geometric hit while sampling an almost
-            // black storm pixel. Fall back to a dim, cool reflection derived
-            // from the already fogged ground instead of painting a black pool.
-            float reflectedLuma = luma(max(reflectionColor.rgb, vec3(0.0)));
-            float puddleBaseLuma = max(
-                luma(max(block_color.rgb, vec3(0.0))) * 0.72,
-                day_blend_float(0.018, 0.022, 0.016)
-            );
-            vec3 puddleReflectionFallback = mix(
-                max(block_color.rgb, vec3(0.0)) * 0.72,
-                vec3(puddleBaseLuma) * vec3(0.78, 0.90, 1.08),
-                0.58
-            );
-            puddleReflectionFallback = max(
-                puddleReflectionFallback,
-                vec3(puddleBaseLuma) * vec3(0.72, 0.84, 1.0)
-            );
-            float invalidDarkReflection = 1.0
-                - smoothstep(0.008, 0.055, reflectedLuma);
-            reflectionColor.rgb = mix(
-                reflectionColor.rgb,
-                puddleReflectionFallback,
-                invalidDarkReflection * 0.92
-            );
+            // Optical body for the shallow water layer. The shared animated
+            // normal bends the view of the ground beneath the puddle; RGB
+            // absorption and restrained in-scattering increase with procedural
+            // depth. This creates readable water thickness without moving the
+            // terrain geometry or painting an opaque colour over it.
+            vec2 puddlePixel = vec2(1.0 / viewWidth, 1.0 / viewHeight);
+            float opticalThickness = puddleMask
+                * mix(0.16, 1.0, puddleDepth);
+            vec2 refractionOffset = viewNormal.xy * puddlePixel
+                * mix(0.8, 3.8, puddleDepth) * puddleMask;
+            vec2 refractedUV = clamp(
+                texcoord + refractionOffset, vec2(0.001), vec2(0.999));
+            float refractedTerrainDepth = texture2D(depthtex2, refractedUV).r;
+            float refractionAgreement = 1.0 - smoothstep(
+                0.00015, 0.0025,
+                abs(refractedTerrainDepth - terrainDepth));
+            vec3 refractedGround = texture2D(colortex1, refractedUV).rgb;
+            float refractedLuma = dot(
+                refractedGround, vec3(0.2126, 0.7152, 0.0722));
+            float readableRefractedLuma = max(
+                refractedLuma, sqrt(max(refractedLuma, 0.0)) * 0.14);
+            vec3 neutralRefractedGround = vec3(readableRefractedLuma)
+                * auroraWaterPaletteHue(puddleDepth * 0.36);
+            refractedGround = mix(
+                refractedGround, neutralRefractedGround,
+                stormNightBalance
+                * mix(0.36, 0.28, localPuddleLightMask));
+            vec3 waterTransmittance = exp(
+                -vec3(1.32, 0.78, 0.42) * opticalThickness);
+            vec3 shallowScatter = currentWeatherSky
+                * (vec3(1.0) - waterTransmittance) * 0.18;
+            vec3 volumeWater = refractedGround * waterTransmittance
+                + shallowScatter;
+            float refractionBlend = puddleMask * refractionAgreement
+                * mix(0.22, 0.60, puddleDepth);
+            block_color.rgb = mix(
+                block_color.rgb, volumeWater,
+                clamp(refractionBlend, 0.0, 0.56));
+
+            // Moving normal contrast remains visible even when both the ground
+            // and the storm sky are extremely dark. This is reflected ambient
+            // energy shaped by wave slope, not a uniform colour overlay.
+            float compositeWaveEnergy = clamp(
+                length(worldNormal.xz) * 1.55, 0.0, 1.0);
+            float nightWaveVisibility = puddleMask * rainStrength
+                * puddleNightAmount
+                * (0.012 + 0.105 * compositeWaveEnergy);
+            block_color.rgb += currentWeatherSky * nightWaveVisibility;
 
             vec3 toCamera = normalize(-viewPos);
             float waterFresnel = 0.04 + 0.96 * pow(
                 1.0 - max(dot(viewNormal, toCamera), 0.0), 5.0);
             float depthStrength = mix(0.68, 1.0, puddleDepth);
-            float reflectionBlend = reflectionColor.a * puddleMask
-                * depthStrength * mix(0.58, 0.92, waterFresnel);
-            block_color.rgb = mix(block_color.rgb, reflectionColor.rgb,
-                clamp(reflectionBlend, 0.0, 0.84));
+            float baseWeatherBlend = puddleMask * depthStrength
+                * mix(0.12, 0.28, waterFresnel);
+            block_color.rgb = mix(block_color.rgb, currentWeatherSky,
+                clamp(baseWeatherBlend, 0.0, 0.32));
+
+            // The terrain pass stored the real block-light field before this
+            // optical water body was assembled. Reintroduce it here so nearby
+            // torches, lanterns and emissive blocks illuminate the final water
+            // surface, with moving-normal contrast instead of a flat overlay.
+            float configuredBlockLightPeak = max(
+                CANDLE_BASELIGHT.r,
+                max(CANDLE_BASELIGHT.g, CANDLE_BASELIGHT.b));
+            vec3 configuredBlockLightHue = CANDLE_BASELIGHT
+                / max(configuredBlockLightPeak, 0.0001);
+            // Diffuse illumination stays mostly neutral, like a softer local
+            // daylight exposure, while the separate specular lobe retains the
+            // source's configured block-light colour.
+            vec3 localDiffuseLightTint = mix(
+                vec3(1.0), configuredBlockLightHue, 0.32);
+            vec3 localSourceReflectionTint = mix(
+                vec3(1.0), configuredBlockLightHue, 0.68);
+            vec3 localGlintDirectionA = normalize(
+                vec3(0.58, 0.78, 0.23));
+            vec3 localGlintDirectionB = normalize(
+                vec3(-0.31, 0.89, 0.33));
+            float localDirectionalGlint = pow(max(dot(
+                worldNormal, localGlintDirectionA), 0.0), 18.0)
+                + pow(max(dot(
+                    worldNormal, localGlintDirectionB), 0.0), 28.0) * 0.72;
+            float localWaveGlint = clamp(
+                0.18 + compositeWaveEnergy * 0.42
+                    + localDirectionalGlint * 1.65,
+                0.18, 1.72);
+            float localWaveHighlight = smoothstep(
+                0.28, 1.05, localWaveGlint);
+            float concentratedLocalLight = pow(
+                clamp(localPuddleLight, 0.0, 1.0), 1.45);
+
+            // Illuminate the existing water body multiplicatively. This reveals
+            // ground transmission and moving texture without replacing either
+            // with a flat coloured patch. The nonlinear response keeps the
+            // effect close to the emitting blocks and preserves their falloff.
+            float localDiffuseIllumination = puddleMask
+                * localPuddleLightMask
+                * concentratedLocalLight
+                * mix(0.72, 0.48, puddleDepth)
+                * mix(0.90, 1.08, localWaveHighlight)
+                * mix(0.18, 1.0, puddleNightAmount);
+            block_color.rgb *= vec3(1.0)
+                + localDiffuseLightTint
+                * localDiffuseIllumination * 1.15;
+
+            // A much smaller coloured lobe belongs only to wave highlights.
+            // It supplies torch/lantern colour without tinting the whole pool.
+            float localLightSurfaceWeight = puddleMask
+                * localPuddleLightMask
+                * mix(0.006, 0.065, concentratedLocalLight)
+                * mix(0.25, 0.78, waterFresnel)
+                * mix(0.20, 1.0, localWaveHighlight)
+                * mix(0.38, 1.0, puddleNightAmount);
+            block_color.rgb += localSourceReflectionTint
+                * localLightSurfaceWeight;
+
+            // Ordinary geometry remains sparse, but genuinely illuminated parts
+            // of a puddle receive a wider SSR footprint. This stays local to
+            // block light and cannot turn the whole pool into a moving mirror.
+            float litSSRMask = max(
+                ssrPatchMask,
+                localPuddleLightMask
+                    * mix(0.05, 0.46, concentratedLocalLight));
+            if (litSSRMask > 0.002) {
+                vec4 reflectionColor = traceFantasyReflection(
+                    viewPos, viewNormal, colortex1, depthtex0, depthtex2,
+                    firstPersonCamera);
+                vec3 reflectViewDir = reflect(
+                    normalize(viewPos), viewNormal);
+                vec2 reflectedSceneUV = fantasyViewToScreen(
+                    reflectViewDir * 64.0);
+                float reflectionDirectionVisible = step(
+                    reflectViewDir.z, -0.001);
+                float reflectedScreenWeight = reflectionDirectionVisible
+                    * fantasyReflectionEdgeFade(reflectedSceneUV);
+
+                // A compact three-tap rough reflection removes razor-sharp
+                // screen pixels and reads as shallow moving water thickness.
+                vec2 reflectionBlurOffset = vec2(
+                    1.0 / viewWidth, 1.0 / viewHeight)
+                    * mix(2.4, 0.75, puddleDepth);
+                vec2 reflectionUV = clamp(
+                    reflectedSceneUV, vec2(0.001), vec2(0.999));
+                vec2 reflectionUVPositive = clamp(
+                    reflectionUV + reflectionBlurOffset,
+                    vec2(0.001), vec2(0.999));
+                vec2 reflectionUVNegative = clamp(
+                    reflectionUV - reflectionBlurOffset,
+                    vec2(0.001), vec2(0.999));
+                vec3 reflectedCurrentScene =
+                    texture2D(colortex1, reflectionUV).rgb * 0.50
+                    + texture2D(colortex1, reflectionUVPositive).rgb * 0.25
+                    + texture2D(colortex1, reflectionUVNegative).rgb * 0.25;
+                vec3 reflectedPatchSky = mix(
+                    currentWeatherSky,
+                    reflectedCurrentScene,
+                    reflectedScreenWeight);
+                float ssrConfidence = reflectionColor.a;
+                vec3 patchReflection = mix(
+                    reflectedPatchSky,
+                    reflectionColor.rgb,
+                    ssrConfidence);
+                float ssrBlend = puddleMask * litSSRMask
+                    * depthStrength * mix(0.16, 0.50, waterFresnel)
+                    * mix(0.55, 1.0, ssrConfidence)
+                    * (float(SSR_STRENGTH) * 0.1);
+                float localGeometryReflection = puddleMask
+                    * localPuddleLightMask
+                    * concentratedLocalLight
+                    * depthStrength
+                    * mix(0.07, 0.22, waterFresnel)
+                    * mix(0.45, 1.0, ssrConfidence);
+                ssrBlend = max(ssrBlend, localGeometryReflection);
+                block_color.rgb = mix(
+                    block_color.rgb,
+                    patchReflection,
+                    clamp(ssrBlend, 0.0, 0.34));
+
+                // Preserve the actual on-screen colour of bright reflected
+                // sources. Dark buildings and terrain receive no additive lift;
+                // only torch, lantern and luminous-block energy creates this
+                // restrained highlight over the water texture.
+                float patchReflectionLuma = dot(
+                    patchReflection, vec3(0.2126, 0.7152, 0.0722));
+                float reflectedSourceSignal = smoothstep(
+                    0.10, 0.52, patchReflectionLuma)
+                    * localPuddleLightMask;
+                vec3 compressedSourceReflection = patchReflection
+                    / (vec3(1.0) + patchReflection * 0.35);
+                float reflectedSourceWeight = puddleMask
+                    * litSSRMask
+                    * reflectedSourceSignal
+                    * mix(0.025, 0.13, waterFresnel)
+                    * mix(0.58, 1.0, localWaveHighlight);
+                block_color.rgb += compressedSourceReflection
+                    * reflectedSourceWeight;
+            }
         }
     }
     #endif

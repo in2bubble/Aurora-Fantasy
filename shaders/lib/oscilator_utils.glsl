@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.4.1 - Oscilator_utils.glsl #include "/lib/oscilator_utils.glsl"
+Aurora Fantasy 5.4.2 - Oscilator_utils.glsl #include "/lib/oscilator_utils.glsl"
 Oscilation Synced with daytime (ticks) - Oscilação vinculada ao tempo mundial (ticks) */
 
 uniform float hour_world;

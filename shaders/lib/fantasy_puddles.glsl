@@ -1,10 +1,13 @@
 /* Aurora Fantasy - Fantasy Rain Puddles
  * A clean-room puddle material built for Aurora's world-space pipeline.
- * Pool boundaries never animate. Only analytic capillary waves and physical
- * raindrop rings affect the surface normal.
+ * Pool boundaries never animate. The surface combines Aurora's real water
+ * noisetex flow with analytic capillary waves and physical raindrop rings.
  */
 #ifndef AURORA_FANTASY_PUDDLES
 #define AURORA_FANTASY_PUDDLES
+
+#include "/lib/water_waves.glsl"
+#include "/lib/water_palette.glsl"
 
 vec2 fantasyHash22(vec2 p) {
     vec2 q = vec2(dot(p, vec2(127.1, 311.7)),
@@ -32,6 +35,46 @@ float fantasyBoundaryNoise(vec2 p) {
     value += fantasyValueNoise(p * 2.07 + vec2(7.3, 2.1)) * 0.50;
     value += fantasyValueNoise(p * 4.13 + vec2(1.7, 9.2)) * 0.25;
     return value * 0.5714286;
+}
+
+// Slowly advected multi-scale noise gives shallow water an organic surface.
+// The coordinates are world anchored, so turning the camera never changes the
+// wave pattern; only time moves the two crossing flows.
+float fantasyAnimatedWaterNoise(vec2 worldXZ, float time) {
+    vec2 flowA = vec2(0.043, -0.026) * time;
+    vec2 flowB = vec2(-0.021, 0.037) * time;
+    float broad = fantasyValueNoise(worldXZ * 0.34 + flowA);
+    float medium = fantasyValueNoise(
+        worldXZ * 0.73 + flowB + vec2(17.2, 5.8));
+    float fine = fantasyValueNoise(
+        worldXZ * 1.47 - flowA * 1.31 + vec2(3.6, 29.1));
+    return broad * 0.52 + medium * 0.32 + fine * 0.16;
+}
+
+vec2 fantasyAnimatedWaterSlope(vec2 worldXZ, float time) {
+    const float epsilon = 0.075;
+    float center = fantasyAnimatedWaterNoise(worldXZ, time);
+    float offsetX = fantasyAnimatedWaterNoise(
+        worldXZ + vec2(epsilon, 0.0), time);
+    float offsetY = fantasyAnimatedWaterNoise(
+        worldXZ + vec2(0.0, epsilon), time);
+    return vec2(offsetX - center, offsetY - center) / epsilon;
+}
+
+// Sparse, irregular world-space islands decide where expensive SSR is allowed.
+// Most of each puddle remains a stable animated water material instead of a
+// full-screen mirror. Deeper centres receive slightly more reflection.
+float getFantasyPuddleSSRMask(vec3 worldPos, float puddleDepth) {
+    float broad = fantasyBoundaryNoise(
+        worldPos.xz * 0.115 + vec2(31.7, 8.4));
+    float breakup = fantasyValueNoise(
+        worldPos.xz * 0.41 + vec2(6.2, 47.9));
+    float patchField = broad * 0.76 + breakup * 0.24;
+    // Roughly one third of a mature pool participates, with only the centres
+    // of those islands reaching full SSR strength.
+    float islands = smoothstep(0.61, 0.77, patchField);
+    float depthGate = smoothstep(0.18, 0.72, puddleDepth);
+    return islands * mix(0.42, 1.0, depthGate);
 }
 
 float fantasyCapsuleDistance(vec2 p, vec2 a, vec2 b) {
@@ -139,31 +182,57 @@ vec2 fantasyWaveSlope(vec2 direction, float wavelength, float amplitude,
 // Expanding circular wave caused by an actual raindrop event. Hashing selects
 // a fixed impact point and time only; the animation itself is a radial wave.
 vec2 fantasyRainRing(vec2 worldXZ, float time, float scale, vec2 offset,
-                     out float ringLight) {
+                     out float ringLight, out float bubbleLight) {
     vec2 grid = worldXZ * scale + offset;
     vec2 cell = floor(grid);
     vec2 local = fract(grid);
     vec2 seed = fantasyHash22(cell + offset * 31.0);
+    vec2 eventSeed = fantasyHash22(
+        cell + offset * 13.0 + vec2(41.7, 9.2));
     vec2 impact = mix(vec2(0.18), vec2(0.82), seed);
     vec2 delta = local - impact;
     float distanceToImpact = length(delta);
 
     float age = fract(time * mix(0.62, 0.92, seed.x) + seed.y);
-    float radius = age * 0.42;
-    float band = exp(-pow((distanceToImpact - radius) * 58.0, 2.0));
+    float eventSize = mix(0.68, 1.38, eventSeed.x);
+    float eventOpacity = mix(0.32, 0.86, eventSeed.y);
+    float radius = age * 0.42 * eventSize;
+    float bandSharpness = mix(44.0, 72.0, seed.y) / eventSize;
+    // At a shallow camera angle a world-space ring can become thinner than a
+    // screen pixel and disappear.  Keep its analytic width when close, but
+    // widen it only enough to cover the current pixel footprint at distance.
+    float screenFootprint = clamp(fwidth(distanceToImpact), 0.0, 0.038);
+    float bandHalfWidth = max(1.0 / bandSharpness,
+                              screenFootprint * 0.82);
+    float band = exp(-pow(
+        (distanceToImpact - radius) / bandHalfWidth, 2.0));
     float fade = (1.0 - age) * (1.0 - age);
-    float ring = band * fade;
+    // A short fade-in removes the single bright white pixel that otherwise
+    // appears on the exact birth frame of every impact.
+    float birthFade = smoothstep(0.0, 0.045, age);
+    float ring = band * fade * birthFade * eventOpacity;
 
     // A short-lived bright crown at the impact point reads as the tiny bubble
     // and upward splash produced when the drop hits a wet surface.
-    float impactCrown = exp(-distanceToImpact * distanceToImpact * 420.0)
-                      * (1.0 - smoothstep(0.0, 0.18, age));
-    float microBubbleRadius = age * 0.13;
+    float impactCrown = exp(-distanceToImpact * distanceToImpact
+                      * (360.0 / eventSize))
+                      * birthFade
+                      * (1.0 - smoothstep(0.035, 0.18, age))
+                      * eventOpacity * 0.52;
+    float microBubbleRadius = age * mix(0.075, 0.17, eventSeed.x);
+    float microBubbleSharpness = mix(68.0, 108.0, seed.x) / eventSize;
+    float microBubbleHalfWidth = max(1.0 / microBubbleSharpness,
+                                     screenFootprint * 0.68);
     float microBubble = exp(-pow(
-        (distanceToImpact - microBubbleRadius) * 92.0, 2.0))
-        * (1.0 - smoothstep(0.05, 0.46, age));
-    ringLight = clamp(ring + impactCrown * 1.35 + microBubble * 0.72,
+        (distanceToImpact - microBubbleRadius) / microBubbleHalfWidth, 2.0))
+        * birthFade
+        * (1.0 - smoothstep(0.05, 0.46, age))
+        * eventOpacity;
+    ringLight = clamp(ring + impactCrown * 0.58 + microBubble * 0.48,
                       0.0, 1.0);
+    bubbleLight = clamp(
+        impactCrown * 0.62 + microBubble * 0.74,
+        0.0, 1.0);
 
     vec2 radial = distanceToImpact > 0.001 ? delta / distanceToImpact : vec2(0.0);
     return radial * (ring * 0.028 + microBubble * 0.012
@@ -184,37 +253,59 @@ vec3 getFantasyWetFilmNormal(vec3 worldPos, float time, float viewDistance,
 
     float ringA;
     float ringB;
+    float bubbleA;
+    float bubbleB;
     slope += fantasyRainRing(worldPos.xz, time, 2.25,
-        vec2(5.4, 11.8), ringA) * detailFade * 0.55;
+        vec2(5.4, 11.8), ringA, bubbleA) * detailFade * 0.55;
     slope += fantasyRainRing(worldPos.xz, time * 1.11, 3.10,
-        vec2(13.2, 4.6), ringB) * detailFade * 0.34;
-    rippleLight = clamp(ringA + ringB * 0.72, 0.0, 1.0) * detailFade;
+        vec2(13.2, 4.6), ringB, bubbleB) * detailFade * 0.34;
+    rippleLight = clamp(
+        ringA + ringB * 0.72 + bubbleA * 0.28 + bubbleB * 0.18,
+        0.0, 1.0) * detailFade;
     return normalize(vec3(-slope.x, 1.0, -slope.y));
 }
 
 vec3 getFantasyPuddleNormal(vec3 worldPos, float time, float viewDistance,
-                            out float rippleLight) {
+                            float skyVisibility,
+                            out float rippleLight, out float bubbleLight) {
     float mediumDetail = 1.0 - smoothstep(28.0, 78.0, viewDistance);
-    float fineDetail = 1.0 - smoothstep(10.0, 34.0, viewDistance);
-    float t = time * 0.52;
+    // Rings remain readable on the foreshortened ground ahead of the camera.
+    // Pixel-footprint antialiasing above prevents this longer range from
+    // turning into unstable single-pixel sparkles.
+    float fineDetail = 1.0 - smoothstep(18.0, 62.0, viewDistance);
+    // Start with the shader's real water material: the same five noisetex
+    // bands, current directions, rain boost, and turbulence response used by
+    // ordinary water. Puddles then add only their local impact disturbance.
+    vec3 shaderWaterTangent = auroraWaterNormalWaves(
+        worldPos.xzy, time, rainStrength, skyVisibility);
+    vec3 shaderWaterWorld = normalize(vec3(
+        shaderWaterTangent.x,
+        max(shaderWaterTangent.z, 0.08),
+        shaderWaterTangent.y));
 
     vec2 slope = vec2(0.0);
-    slope += fantasyWaveSlope(vec2( 1.0,  0.55), 4.2, 0.031, worldPos.xz, t);
-    slope += fantasyWaveSlope(vec2(-0.62, 1.00), 3.1, 0.023, worldPos.xz, t * 0.88);
-    slope += fantasyWaveSlope(vec2( 0.25, 1.0), 1.8, 0.011, worldPos.xz, t * 1.32) * mediumDetail;
-    slope += fantasyWaveSlope(vec2( 1.0, -0.35), 1.15, 0.006, worldPos.xz, t * 1.65) * fineDetail;
 
     float ringA;
     float ringB;
     float ringC;
-    slope += fantasyRainRing(worldPos.xz, time, 1.15, vec2(3.1, 7.7), ringA) * fineDetail;
-    slope += fantasyRainRing(worldPos.xz, time, 1.72, vec2(9.3, 2.4), ringB) * fineDetail;
+    float bubbleA;
+    float bubbleB;
+    float bubbleC;
+    slope += fantasyRainRing(worldPos.xz, time, 1.15,
+        vec2(3.1, 7.7), ringA, bubbleA) * fineDetail;
+    slope += fantasyRainRing(worldPos.xz, time, 1.72,
+        vec2(9.3, 2.4), ringB, bubbleB) * fineDetail;
     slope += fantasyRainRing(worldPos.xz, time * 1.07, 2.48,
-        vec2(14.7, 6.1), ringC) * fineDetail * 0.62;
+        vec2(14.7, 6.1), ringC, bubbleC) * fineDetail * 0.62;
     rippleLight = clamp(ringA + ringB + ringC * 0.78,
                         0.0, 1.0) * fineDetail;
+    bubbleLight = clamp(
+        bubbleA + bubbleB * 0.86 + bubbleC * 0.72,
+        0.0, 1.0) * fineDetail;
 
-    return normalize(vec3(-slope.x, 1.0, -slope.y));
+    vec3 impactNormal = normalize(vec3(-slope.x, 1.0, -slope.y));
+    float fullWaterWeight = mix(0.46, 0.72, mediumDetail);
+    return normalize(mix(impactNormal, shaderWaterWorld, fullWaterWeight));
 }
 
 #endif

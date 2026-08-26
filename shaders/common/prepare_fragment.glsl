@@ -1,4 +1,4 @@
-// Aurora Fantasy 5.4.1 - Prepare_fragment.glsl
+// Aurora Fantasy 5.4.2 - Prepare_fragment.glsl
 // Sky colors.
 
 #include "/lib/config.glsl"

@@ -183,6 +183,7 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 
 // Weather (Rain particles)
 #define WEATHER_OPACITY 0.35 // [0.0 0.05 0.1 0.15 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.55 0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 1.0] Rain drop opacity.
+#define CAMERA_RAIN_DROPS // Sliding rain beads and rivulets on the player's camera lens.
 
 // Water Edge Foam
 #define WATER_FOAM // Enable white foam at water edges where water meets solid blocks.

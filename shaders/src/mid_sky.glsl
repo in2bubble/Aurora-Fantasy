@@ -27,12 +27,23 @@ vec3 mid_sky_color_rgb = day_blend(
 
 #endif
 
+float rainy_twilight_mid = rainStrength
+    * smoothstep(0.49, 0.545, day_moment)
+    * (1.0 - smoothstep(0.64, 0.72, day_moment));
+float rainy_twilight_mid_luma = max(luma(mid_sky_color_rgb), 0.001);
+vec3 rainy_twilight_mid_hue = MID_SUNSET_COLOR
+    / max(luma(MID_SUNSET_COLOR), 0.001);
+mid_sky_color_rgb = mix(
+    mid_sky_color_rgb,
+    rainy_twilight_mid_hue * rainy_twilight_mid_luma,
+    rainy_twilight_mid * 0.16);
+
 float rainy_night_mid = rainStrength * day_blend_float(0.0, 0.0, 1.0);
-vec3 rainy_night_mid_floor = vec3(0.040, 0.060, 0.090);
+vec3 rainy_night_mid_floor = vec3(0.014, 0.022, 0.035);
 mid_sky_color_rgb = mix(
     mid_sky_color_rgb,
     max(mid_sky_color_rgb, rainy_night_mid_floor),
-    rainy_night_mid * 0.88
+    rainy_night_mid * 0.62
 );
 mid_sky_color = rgb_to_xyz(mid_sky_color_rgb);
 
@@ -51,8 +62,8 @@ vec3 pure_mid_sky_color_rgb = day_blend(
     float pure_rainy_night_mid = rainStrength * day_blend_float(0.0, 0.0, 1.0);
     pure_mid_sky_color_rgb = mix(
         pure_mid_sky_color_rgb,
-        max(pure_mid_sky_color_rgb, vec3(0.040, 0.060, 0.090)),
-        pure_rainy_night_mid * 0.88
+        max(pure_mid_sky_color_rgb, vec3(0.014, 0.022, 0.035)),
+        pure_rainy_night_mid * 0.62
     );
 
     pure_mid_sky_color = rgb_to_xyz(pure_mid_sky_color_rgb);

@@ -39,12 +39,28 @@
 
     #endif
 
+    // Keep a restrained remnant of the sunset hue beneath storm clouds. It is
+    // luminance-preserving, so dusk gains colour without regaining daylight
+    // exposure.
+    float rainy_twilight_low = rainStrength
+        * smoothstep(0.49, 0.545, day_moment)
+        * (1.0 - smoothstep(0.64, 0.72, day_moment));
+    float rainy_twilight_low_luma = max(luma(low_sky_color_rgb), 0.001);
+    vec3 rainy_twilight_low_hue = HORIZON_SUNSET_COLOR
+        / max(luma(HORIZON_SUNSET_COLOR), 0.001);
+    low_sky_color_rgb = mix(
+        low_sky_color_rgb,
+        rainy_twilight_low_hue * rainy_twilight_low_luma,
+        rainy_twilight_low * 0.28);
+
     float rainy_night_low = rainStrength * day_blend_float(0.0, 0.0, 1.0);
-    vec3 rainy_night_low_floor = vec3(0.052, 0.074, 0.108);
+    // The horizon must not be brighter than the mid sky at midnight; the old
+    // ascending floor created the detached green-screen halo around terrain.
+    vec3 rainy_night_low_floor = vec3(0.012, 0.019, 0.030);
     low_sky_color_rgb = mix(
         low_sky_color_rgb,
         max(low_sky_color_rgb, rainy_night_low_floor),
-        rainy_night_low * 0.88
+        rainy_night_low * 0.62
     );
     low_sky_color = rgb_to_xyz(low_sky_color_rgb);
 #endif
@@ -64,8 +80,8 @@ vec3 pure_low_sky_color_rgb = day_blend(
     float pure_rainy_night_low = rainStrength * day_blend_float(0.0, 0.0, 1.0);
     pure_low_sky_color_rgb = mix(
         pure_low_sky_color_rgb,
-        max(pure_low_sky_color_rgb, vec3(0.052, 0.074, 0.108)),
-        pure_rainy_night_low * 0.88
+        max(pure_low_sky_color_rgb, vec3(0.012, 0.019, 0.030)),
+        pure_rainy_night_low * 0.62
     );
 
     pure_low_sky_color = rgb_to_xyz(pure_low_sky_color_rgb);

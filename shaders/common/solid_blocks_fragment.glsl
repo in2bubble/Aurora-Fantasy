@@ -3,7 +3,7 @@
 
 #ifdef RAIN_PUDDLES
     // Direct boolean reference required by Iris' shader-option discovery.
-    #if !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
+    #if !defined NETHER && !defined THE_END && defined GBUFFER_TERRAIN
         #define RAIN_SURFACE_PASS
     #endif
 #endif
@@ -32,6 +32,10 @@ uniform mat4 gbufferProjectionInverse;
 uniform vec3 sunPosition;
 uniform sampler2D depthtex0;
 uniform float near;
+
+#ifdef RAIN_SURFACE_PASS
+    uniform sampler2D noisetex;
+#endif
 
 #if defined GBUFFER_BLOCK || defined RAIN_SURFACE_PASS || (defined FANTASY_LIFE_SYSTEM && defined FANTASY_NIGHT_FLORA && !defined NETHER && !defined THE_END)
     uniform vec3 cameraPosition;
@@ -202,9 +206,75 @@ void main() {
         }
     #endif
     vec4 block_color = texture2D(tex, texcoord);
+
+    #if defined GBUFFER_TEXTURED && !defined NETHER && !defined THE_END
+        // Minecraft's rain-impact sprites are blue ground-hugging billboards.
+        // Iris exposes the particle atlas with the V axis flipped on some
+        // drivers/resource paths, so test both atlas orientations. The colour
+        // and depth-gap checks are a conservative fallback for repacked atlases.
+        if (rainStrength > 0.001) {
+            vec2 particleAtlasPixel = texcoord * vec2(512.0, 256.0);
+            bool nominalSplash =
+                (particleAtlasPixel.x >= 412.0
+                    && particleAtlasPixel.x < 420.0
+                    && particleAtlasPixel.y >= 240.0
+                    && particleAtlasPixel.y < 248.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 0.0
+                    && particleAtlasPixel.y < 8.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 10.0
+                    && particleAtlasPixel.y < 18.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 20.0
+                    && particleAtlasPixel.y < 28.0);
+            bool flippedSplash =
+                (particleAtlasPixel.x >= 412.0
+                    && particleAtlasPixel.x < 420.0
+                    && particleAtlasPixel.y >= 8.0
+                    && particleAtlasPixel.y < 16.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 248.0
+                    && particleAtlasPixel.y < 256.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 238.0
+                    && particleAtlasPixel.y < 246.0)
+                || (particleAtlasPixel.x >= 422.0
+                    && particleAtlasPixel.x < 430.0
+                    && particleAtlasPixel.y >= 228.0
+                    && particleAtlasPixel.y < 236.0);
+
+            vec3 particleColour = block_color.rgb * tint_color.rgb;
+            bool stronglyBlue = particleColour.b > 0.045
+                && particleColour.b > particleColour.r * 1.22
+                && particleColour.b > particleColour.g * 1.06;
+
+            vec2 particleScreenUV = gl_FragCoord.xy
+                * vec2(pixel_size_x, pixel_size_y) / RENDER_SCALE;
+            float groundDepth = texture2D(depthtex0, particleScreenUV).r;
+            vec4 groundViewH = gbufferProjectionInverse *
+                (vec4(particleScreenUV, groundDepth, 1.0) * 2.0 - 1.0);
+            vec3 groundView = groundViewH.xyz
+                / max(abs(groundViewH.w), 0.00001);
+            vec3 particleView = fragpos.xyz
+                / max(abs(fragpos.w), 0.00001);
+            float groundGap = abs(length(groundView) - length(particleView));
+            bool blueGroundImpact = stronglyBlue && groundDepth < 0.9999
+                && groundGap < 0.95;
+
+            if (nominalSplash || (flippedSplash && stronglyBlue)
+                    || blueGroundImpact) discard;
+        }
+    #endif
     
     vec4 pure_block_color = block_color;
     block_color *= tint_color;
+
     float block_luma = luma(block_color.rgb);
     
     vec3 final_candle_color = candle_color;
@@ -458,8 +528,21 @@ void main() {
         // SSR output variables — declared before puddle code so they can be set, then read by writebuffers
         vec3 puddle_normal_out = vec3(0.5, 1.0, 0.5);
         float puddle_mask_out = 0.0;
-        float puddle_wetness_out = 0.0;
+        float puddle_ssr_patch_out = 0.0;
         float puddle_depth_out = 0.0;
+        // R8 auxiliary channel consumed after the optical water body has been
+        // assembled. It prevents the night palette from painting over the
+        // local torch and emissive-block response.
+        float puddle_local_light_out = 0.0;
+        // Logarithmic view distance identifies the exact terrain surface that
+        // authored the puddle data. Composite uses it to reject residual data
+        // beneath entities (notably the third-person player).
+        vec3 puddleViewPosition = fragpos.xyz
+            / max(abs(fragpos.w), 0.00001);
+        float puddle_surface_distance_out = clamp(
+            log2(1.0 + length(puddleViewPosition))
+                / log2(1.0 + far),
+            0.0, 1.0);
 
         #ifdef RAIN_SURFACE_PASS
         {
@@ -479,6 +562,18 @@ void main() {
             float surfaceWetness = smoothstep(0.30, 0.90, upDot)
                 * rainAmount * (1.0 - hotBlockMask) * skyExposure;
 
+            // Use the same block-light field as Aurora's real water. Its
+            // strength is forwarded to composite, after refraction is built.
+            vec3 safeLocalBlockLight = max(candle_color, vec3(0.0));
+            float localBlockLightLuma = dot(
+                safeLocalBlockLight, vec3(0.2126, 0.7152, 0.0722));
+            float localBlockLightMask = smoothstep(
+                0.018, 0.42, localBlockLightLuma);
+            float localBlockLightEncoded = clamp(
+                localBlockLightLuma * 1.05, 0.0, 1.0);
+            puddle_local_light_out = puddleOpacity
+                * localBlockLightEncoded;
+
             // Build Aurora's storm environment once. Zenith comes from the
             // shader's actual sky model; the horizon uses the weather fog/sky.
             // The gradient is sampled by a world-space reflection direction,
@@ -490,13 +585,34 @@ void main() {
             zenithEnvironment *= vec3(0.96, 0.99, 1.03);
             horizonEnvironment *= vec3(0.98, 0.99, 1.01);
 
+            // Once night begins, storm water must stop inheriting the warm
+            // sunset lobe that remains around the sun direction. Preserve the
+            // measured luminance, but move only the puddle environment toward
+            // a neutral moonlit blue. The rest of the world keeps Aurora's
+            // original sunset/night grading.
+            float puddleNightAmount = day_blend_float(0.0, 0.0, 1.0);
+            float stormNightBalance = rainStrength
+                * smoothstep(0.025, 0.62, puddleNightAmount);
+            float zenithLuma = dot(
+                zenithEnvironment, vec3(0.2126, 0.7152, 0.0722));
+            float horizonLuma = dot(
+                horizonEnvironment, vec3(0.2126, 0.7152, 0.0722));
+            vec3 puddlePaletteHue = auroraWaterPaletteHue(puddleDepth * 0.36);
+            vec3 coolZenith = vec3(zenithLuma) * puddlePaletteHue;
+            vec3 coolHorizon = vec3(horizonLuma)
+                * mix(vec3(1.0), puddlePaletteHue, 0.74);
+            zenithEnvironment = mix(
+                zenithEnvironment, coolZenith, stormNightBalance * 0.88);
+            horizonEnvironment = mix(
+                horizonEnvironment, coolHorizon, stormNightBalance * 0.92);
+
             // A storm sky can approach numerical black at night. Real shallow
             // water still retains diffuse sky radiance, so keep a very low,
             // time-aware blue-grey floor instead of producing black decals.
             vec3 puddleAmbientFloor = day_blend(
-                vec3(0.025, 0.030, 0.042),
-                vec3(0.030, 0.042, 0.055),
-                vec3(0.012, 0.022, 0.038)
+                vec3(0.018, 0.023, 0.031),
+                vec3(0.026, 0.034, 0.044),
+                vec3(0.012, 0.020, 0.033)
             );
             zenithEnvironment = max(
                 zenithEnvironment,
@@ -518,7 +634,7 @@ void main() {
             vec3 groundViewDir = normalize(cameraPosition - worldPos);
             float wetFilmRing;
             vec3 wetFilmNormal = getFantasyWetFilmNormal(
-                worldPos, persistentTimeSeconds, length(fragpos.xyz), wetFilmRing);
+                worldPos, frameTimeCounter, length(fragpos.xyz), wetFilmRing);
             vec3 groundWetNormal = normalize(mix(normalize(world_normal),
                 wetFilmNormal, wetGround * 0.22));
             vec3 groundReflectDir = reflect(-groundViewDir, groundWetNormal);
@@ -533,43 +649,119 @@ void main() {
                 * rainStrength * mix(0.045, 0.105, groundFresnel);
 
             puddle_normal_out = normalize(world_normal) * 0.5 + 0.5;
-            puddle_wetness_out = surfaceWetness;
             puddle_depth_out = puddleDepth;
 
             if (puddleOpacity > 0.001) {
                 float rippleLight;
+                float bubbleLight;
                 vec3 waterNormal = getFantasyPuddleNormal(
-                    worldPos, persistentTimeSeconds, length(fragpos.xyz), rippleLight);
+                    worldPos, frameTimeCounter, length(fragpos.xyz),
+                    skyExposure,
+                    rippleLight, bubbleLight);
                 float depthResponse = mix(0.28, 0.76, puddleDepth);
+                float thicknessVariation = mix(0.84, 1.16,
+                    fantasyBoundaryNoise(
+                        worldPos.xz * 0.19 + vec2(12.7, 35.1)));
+                float waterThickness = clamp(
+                    puddleDepth * thicknessVariation, 0.0, 1.0);
                 vec3 mixedWorldNormal = normalize(mix(
                     normalize(world_normal), waterNormal, puddleOpacity * depthResponse));
 
                 // Clear shallow water still reveals the original block texture;
                 // deeper centres absorb more light without turning flat grey.
                 vec3 absorbedGround = block_color.rgb * vec3(0.68, 0.73, 0.79);
-                float absorption = puddleOpacity * mix(0.20, 0.54, puddleDepth);
+                float absorption = puddleOpacity
+                    * mix(0.16, 0.58, waterThickness);
                 block_color.rgb = mix(block_color.rgb, absorbedGround, absorption);
+
+                // Remove the warm ground-light contamination that otherwise
+                // comes through the shallow body when looking toward sunset at
+                // early night. Luminance still comes from the real block, and
+                // the gentle dark-range expansion preserves its texture at
+                // midnight instead of replacing it with a flat water colour.
+                float waterBodyLuma = dot(
+                    block_color.rgb, vec3(0.2126, 0.7152, 0.0722));
+                float readableNightLuma = max(
+                    waterBodyLuma, sqrt(max(waterBodyLuma, 0.0)) * 0.16);
+                vec3 neutralNightBody = vec3(readableNightLuma)
+                    * auroraWaterPaletteHue(waterThickness * 0.36);
+                block_color.rgb = mix(
+                    block_color.rgb, neutralNightBody,
+                    puddleOpacity * stormNightBalance
+                    * mix(0.38, 0.25, localBlockLightMask));
+
+                // Advected noise changes the micro-transmission over time,
+                // making the pool body visibly flow even where SSR is absent.
+                float animatedSurfaceNoise = fantasyAnimatedWaterNoise(
+                    worldPos.xz, frameTimeCounter);
+                float movingSheen = animatedSurfaceNoise - 0.5;
+                block_color.rgb *= 1.0
+                    + movingSheen * puddleOpacity * 0.085;
+                block_color.rgb += horizonEnvironment
+                    * max(movingSheen, 0.0) * puddleOpacity * 0.075;
+
+                // At midnight, texture motion needs reflected moon/storm
+                // radiance to remain readable. This responds to the animated
+                // water normal and is therefore not a flat emissive lift.
+                float waveSlopeEnergy = clamp(
+                    length(waterNormal.xz) * 1.45, 0.0, 1.0);
+                float nightWaveResponse = puddleNightAmount * rainStrength
+                    * puddleOpacity * (0.018 + 0.115 * waveSlopeEnergy);
+                block_color.rgb += mix(
+                    horizonEnvironment, zenithEnvironment, 0.58)
+                    * nightWaveResponse;
 
                 vec3 worldViewDir = normalize(cameraPosition - worldPos);
                 float viewFacing = max(dot(mixedWorldNormal, worldViewDir), 0.0);
                 float waterFresnel = 0.04 + 0.96 * pow(1.0 - viewFacing, 5.0);
-                vec3 reflectionDirection = reflect(-worldViewDir, mixedWorldNormal);
-                float reflectedSkyHeight = pow(clamp(
-                    reflectionDirection.y * 0.92 + 0.08, 0.0, 1.0), 0.42);
-                vec3 environment = mix(horizonEnvironment, zenithEnvironment,
-                    reflectedSkyHeight);
-                float environmentBlend = puddleOpacity
-                    * mix(0.32, 0.72, waterFresnel)
-                    * mix(0.72, 1.0, puddleDepth);
-                block_color.rgb = mix(block_color.rgb, environment, environmentBlend);
+
+                // Stable local-light response. The lightmap/candle channel
+                // supplies nearby torch and emissive-block colour even when the
+                // source itself is outside the screen. Wave slope and moving
+                // transmission break it into a living shallow-water sheen.
+                vec3 localBlockLightColor = safeLocalBlockLight
+                    / (vec3(1.0) + safeLocalBlockLight * 0.42);
+                float localLightWaveFocus = 0.36
+                    + 0.64 * clamp(length(waterNormal.xz) * 1.55, 0.0, 1.0);
+                float localLightReflection = localBlockLightMask
+                    * puddleOpacity
+                    * mix(0.015, 0.055, waterFresnel)
+                    * localLightWaveFocus
+                    * mix(0.72, 1.28, animatedSurfaceNoise)
+                    * mix(0.34, 1.0, puddleNightAmount);
+                block_color.rgb += localBlockLightColor
+                    * localLightReflection;
+
+                // Foreshortening compresses the ring when looking forward.
+                // Compensate its contrast at grazing angles without changing
+                // the storm-tinted colour or making top-down impacts brighter.
+                float grazingRippleVisibility = mix(
+                    1.0, 2.25, pow(1.0 - viewFacing, 1.35));
+                // Composite owns the directional reflection and can see the
+                // fully rendered current clouds. Do not inject the clear-sky
+                // approximation here: doing so tinted rainy puddles pink at
+                // dawn before the real storm reflection was available.
 
                 // Raindrop rings modulate the reflected environment itself.
                 // This reads as moving water rather than a bright fake decal.
-                block_color.rgb += environment * rippleLight * puddleOpacity
-                    * rainStrength * mix(0.055, 0.12, waterFresnel);
+                // Keep impacts inside the current storm palette. A restrained
+                // cool lift provides contrast without white pin-prick flashes.
+                vec3 impactLight = max(
+                    horizonEnvironment * vec3(0.82, 0.92, 1.02),
+                    mix(vec3(0.055, 0.075, 0.095),
+                        vec3(0.072, 0.108, 0.165),
+                        puddleNightAmount));
+                block_color.rgb += impactLight
+                    * (rippleLight * mix(0.075, 0.135, waterFresnel)
+                    + bubbleLight * 0.15)
+                    * puddleOpacity * rainStrength
+                    * grazingRippleVisibility;
 
                 puddle_normal_out = mixedWorldNormal * 0.5 + 0.5;
                 puddle_mask_out = puddleOpacity * mix(0.62, 1.0, puddleDepth);
+                puddle_ssr_patch_out = getFantasyPuddleSSRMask(
+                    worldPos, waterThickness);
+                puddle_depth_out = waterThickness;
             }
             }
         }

@@ -6,7 +6,7 @@
 /*
 
 noisetex - Water normals
-colortex0 - Unused
+colortex0 - Rain-puddle local block-light strength
 colortex1 - Antialiasing auxiliar
 colortex2 - Unused
 colortex3 - TAA Averages history
@@ -28,14 +28,14 @@ const int gaux2Format = R8;
 const int gaux3Format = R16F;
 const int gaux4Format = R11F_G11F_B10F;
 
-const int colortex8Format = RGBA8;
+const int colortex8Format = RGBA16;
 const int colortex9Format = RGBA8;
 
 const int shadowcolor0Format = RGBA8;
 */
 
 // Buffers clear
-const bool colortex0Clear = false;
+const bool colortex0Clear = true;
 const bool colortex1Clear = false;
 const bool colortex2Clear = false;
 const bool colortex3Clear = false;
@@ -89,6 +89,9 @@ varying float exposure;
 #endif
 
 #include "/lib/day_blend.glsl"
+#ifdef CAMERA_RAIN_DROPS
+    #include "/lib/lens_rain.glsl"
+#endif
 
 // Vignette, Film grain, Sharpening and Fake bloom.
 #if defined VIGNETTE || defined FAKE_BLOOM || defined FILM_GRAIN || defined COLOR_BLINDNESS || AA_TYPE == 3
@@ -105,6 +108,11 @@ varying float exposure;
 
 void main() {
     vec2 pixelUV = texcoord;
+    #ifdef CAMERA_RAIN_DROPS
+        float cameraRainMask = 0.0;
+        float cameraRainRim = 0.0;
+        vec2 cameraRainNormal = vec2(0.0);
+    #endif
 
     #ifdef PS1_LIKE
         pixelUV = floor(texcoord * vec2(viewWidth, viewHeight) / PIXEL_SIZE) * PIXEL_SIZE / vec2(viewWidth, viewHeight) * RENDER_SCALE;
@@ -122,6 +130,44 @@ void main() {
 
             block_color = sharpen(colortex1, block_color, pixelUV);
         #endif
+    #endif
+
+    #if defined CAMERA_RAIN_DROPS && !defined NETHER && !defined THE_END
+        // Refract the world before color grading so the displaced image passes
+        // through the same exposure and tonemapping as the original scene.
+        if (isEyeInWater == 0 && rainStrength > 0.01) {
+            getLensRain(pixelUV, rainStrength, cameraRainMask,
+                        cameraRainRim, cameraRainNormal);
+            if (cameraRainMask > 0.001) {
+                vec2 lensOffset = cameraRainNormal
+                                * vec2(0.00255, 0.00345);
+                vec2 refractedUV = clamp(pixelUV + lensOffset,
+                                         vec2(0.001), vec2(0.999));
+
+                // Three local samples imitate the defocus and depth visible
+                // through water on glasses, limited strictly to the droplet.
+                vec2 tangent = vec2(-cameraRainNormal.y,
+                                     cameraRainNormal.x);
+                tangent /= max(length(tangent), 0.001);
+                float localBlur = mix(0.00040, 0.00135,
+                    smoothstep(0.10, 0.92, cameraRainMask));
+                vec2 blurOffset = tangent * localBlur;
+                vec3 refractedCenter = texture2DLod(
+                    colortex1, refractedUV, 0.0).rgb;
+                vec3 refractedLeft = texture2DLod(
+                    colortex1,
+                    clamp(refractedUV - blurOffset,
+                          vec2(0.001), vec2(0.999)), 0.0).rgb;
+                vec3 refractedRight = texture2DLod(
+                    colortex1,
+                    clamp(refractedUV + blurOffset,
+                          vec2(0.001), vec2(0.999)), 0.0).rgb;
+                vec3 refractedScene = refractedCenter * 0.50
+                                    + (refractedLeft + refractedRight) * 0.25;
+                block_color = mix(block_color, refractedScene,
+                                  cameraRainMask * 0.84);
+            }
+        }
     #endif
 
     // Dark areas dessaturation and blueness.
@@ -247,7 +293,7 @@ void main() {
 
         float rainy_midnight_amount = rainStrength * midnight_grade;
         float temporal_shadow_gain = 1.0
-            + early_night_grade * 0.40
+            + early_night_grade * mix(0.40, 0.04, rainStrength)
             + midnight_grade * mix(0.28, 0.10, rainStrength);
         block_color *= mix(
             1.0,
@@ -256,12 +302,26 @@ void main() {
                 * distance_continuity * solid_surface_weight
         );
 
+        // A rainy dusk must read as dusk, not as a blue daytime exposure.
+        // Darken sky and geometry in the same time window while leaving a
+        // little more luminance in the sky for the cloud silhouettes.
+        float rainy_twilight_amount = rainStrength * early_night_grade;
+        float rainy_twilight_gain = mix(0.68, 0.61, geometry_mask);
+        block_color *= mix(
+            1.0,
+            rainy_twilight_gain,
+            rainy_twilight_amount);
+
         // A fully overcast midnight must not inherit the apparent exposure of
         // a rainy afternoon. Darken the open sky/fog more than nearby terrain,
         // then compress the flat weather blue into a restrained moonlit navy.
         // This is active only while rain and the midnight window overlap, so
         // clear nights and daytime weather keep their established calibration.
-        float rainy_midnight_gain = mix(0.66, 0.78, geometry_mask);
+        float distant_horizon_surface = geometry_mask
+            * smoothstep(0.30, 0.84, scene_linear_depth);
+        float rainy_midnight_gain = mix(0.66, 0.71, geometry_mask);
+        rainy_midnight_gain = mix(
+            rainy_midnight_gain, 0.66, distant_horizon_surface);
         block_color *= mix(
             1.0,
             rainy_midnight_gain,
@@ -374,6 +434,45 @@ void main() {
             max(block_color, nightVisionDisplaySkyFloor),
             nightVisionSkyWeight * nightVisionDisplaySkyDarkness * 0.88
         );
+    #endif
+
+    #if defined CAMERA_RAIN_DROPS && !defined NETHER && !defined THE_END
+        // A restrained display-space Fresnel rim keeps droplets visible on
+        // both bright clouds and dark terrain without becoming distracting.
+        float cameraBackdropLuma = luma(max(block_color, vec3(0.0)));
+        vec2 cameraDropDirection = cameraRainNormal
+            / max(length(cameraRainNormal), 0.001);
+        float cameraEdgeFacing = dot(cameraDropDirection,
+                                     normalize(vec2(-0.46, 0.89)));
+        float cameraBrightBackdrop = smoothstep(0.30, 0.70,
+                                                 cameraBackdropLuma);
+        float cameraHighlightSide = smoothstep(-0.05, 0.72,
+                                                cameraEdgeFacing);
+        float cameraShadowSide = 1.0 - smoothstep(-0.72, 0.08,
+                                                  cameraEdgeFacing);
+
+        // Inherit a restrained amount of the current scene hue. On bright
+        // skies the dark edge dominates; at night the light-facing edge does.
+        float cameraColorPeak = max(max(block_color.r, block_color.g),
+                                    max(block_color.b, 0.001));
+        vec3 cameraSceneHue = block_color / cameraColorPeak;
+        vec3 cameraDropHighlight = mix(vec3(0.070, 0.086, 0.105),
+                                       cameraSceneHue * 0.11
+                                           + vec3(0.012, 0.016, 0.022),
+                                       0.38);
+        float cameraDropSlope = clamp(length(cameraRainNormal), 0.0, 1.0);
+        float cameraLightFacing = clamp(0.54
+            + dot(cameraRainNormal, vec2(-0.42, 0.91)) * 0.38,
+            0.18, 1.0);
+        float cameraAdaptiveShadow = cameraRainRim * cameraShadowSide
+            * mix(0.055, 0.15, cameraBrightBackdrop);
+        block_color *= 1.0 - cameraRainMask * 0.030
+                           - cameraAdaptiveShadow;
+        block_color += cameraDropHighlight
+                     * (cameraRainRim * cameraHighlightSide
+                        * mix(0.78, 0.38, cameraBrightBackdrop)
+                      + cameraRainMask * cameraDropSlope
+                        * cameraLightFacing * 0.075);
     #endif
 
     #ifdef VIGNETTE
