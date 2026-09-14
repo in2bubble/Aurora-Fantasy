@@ -16,6 +16,11 @@ uniform ivec2 eyeBrightnessSmooth;
 uniform sampler2D colortex1;
 uniform sampler2D gaux3;
 
+#if !defined NETHER && !defined THE_END && defined SUN_GAZE_ADAPTATION
+    uniform vec3 sunPosition;
+    uniform mat4 gbufferModelViewInverse;
+#endif
+
 /* Ins / Outs */
 
 varying vec2 texcoord;
@@ -56,6 +61,20 @@ void main() {
         float prev_exposure = texture2D(gaux3, vec2(0.5)).r;
 
         exposure = (exp(-exposure) * 3.25) + 0.6;
+
+        #if !defined NETHER && !defined THE_END && defined SUN_GAZE_ADAPTATION
+            // Eye adaptation is part of the same temporally filtered exposure
+            // path, so the world dims and recovers smoothly rather than
+            // flickering as the crosshair passes over the solar disc.
+            // Use the real render-camera orientation rather than a projected
+            // centre ray, so third-person/FOV changes never desync the gaze.
+            vec3 gazeWorldRay = normalize(-gbufferModelViewInverse[2].xyz);
+            vec3 sunWorldDir = normalize(
+                (gbufferModelViewInverse * vec4(normalize(sunPosition), 0.0)).xyz);
+            float directSunGaze = smoothstep(
+                0.82, 0.975, dot(gazeWorldRay, sunWorldDir));
+            exposure *= mix(1.0, SUN_EYE_ADAPTATION, directSunGaze);
+        #endif
         exposure = mix(exposure, prev_exposure, exp(-frameTime * 1.5));
     #else
         exposure = 1.0;

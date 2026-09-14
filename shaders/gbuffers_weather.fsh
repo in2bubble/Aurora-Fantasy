@@ -10,6 +10,7 @@
 #include "/lib/color_utils.glsl"
 #include "/lib/fantasy_rain.glsl"
 
+uniform sampler2D gtexture;
 uniform float rainStrength;
 
 varying vec2 texUV;
@@ -18,6 +19,8 @@ varying float viewDistance;
 varying vec2 weatherWorldXZ;
 
 void main() {
+    vec4 vanillaTex = texture2D(gtexture, texUV) * color;
+
     // Aurora Fantasy native time-of-day color blending
     vec3 dayCore = vec3(0.38, 0.42, 0.46);
     vec3 sunsetCore = vec3(0.42, 0.38, 0.36);
@@ -33,21 +36,28 @@ void main() {
     float rainMask;
     float innerCore;
     float edgeHighlight;
+    float dropOpacityVariation;
 
     getFantasyRain(texUV, weatherWorldXZ, nightAmount,
-        viewDistance, rainMask, innerCore, edgeHighlight);
+        viewDistance, vanillaTex.a,
+        rainMask, innerCore, edgeHighlight, dropOpacityVariation);
 
     float vertexRainLuma = dot(color.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec3 neutralVertexTint = mix(vec3(vertexRainLuma), color.rgb, 0.20);
     vec3 rainColor = mix(rainCore, rainEdge, edgeHighlight * 0.30)
                    * mix(0.92, 1.08, innerCore)
-                   * neutralVertexTint * 1.15;
+                   * neutralVertexTint
+                   * mix(0.70, 1.22, dropOpacityVariation);
+    // Night rain should read as cool wet streaks, not daylight-white lines.
+    rainColor = mix(rainColor,
+        vec3(0.14, 0.22, 0.31) * mix(0.78, 1.10, innerCore),
+        nightAmount * 0.60);
 
-    float rainAlpha = rainMask * (0.26 + innerCore * 0.12)
-                    * WEATHER_OPACITY * mix(1.0, 1.10, nightAmount)
-                    * color.a;
+    float rainAlpha = rainMask * (0.40 + innerCore * 0.30)
+                    * WEATHER_OPACITY * dropOpacityVariation
+                    * mix(1.0, 0.86, nightAmount);
 
-    if (rainAlpha <= 0.003) discard;
+    if (rainAlpha <= 0.001) discard;
 
     /* DRAWBUFFERS:1 */
     gl_FragData[0] = vec4(rainColor, rainAlpha);

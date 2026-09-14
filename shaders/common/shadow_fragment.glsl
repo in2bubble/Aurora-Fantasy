@@ -15,6 +15,8 @@ varying float is_noshadow;
 varying float visible_sky;
 
 varying float is_water;
+varying float is_stained_glass;
+varying vec4 shadow_tint;
 
 #include "/lib/caustics.glsl"
 #include "/lib/luma.glsl"
@@ -60,6 +62,19 @@ void main() {
         }
     #else
         block_color = texture2D(tex, texcoord);
+    #endif
+
+    #if defined COLORED_SHADOW && defined STAINED_GLASS_LIGHT
+        if (is_stained_glass > 0.5) {
+            // The shadow pass does not receive the translucent render-layer
+            // blend state reliably on Minecraft 26.2. Write a deliberate
+            // coloured transmission sample for stained glass instead.
+            vec3 glassTint = max(block_color.rgb * shadow_tint.rgb, vec3(0.0));
+            float strongestChannel = max(max(glassTint.r, glassTint.g), glassTint.b);
+            glassTint /= max(strongestChannel, 0.001);
+            block_color.rgb = mix(vec3(1.0), sqrt(glassTint), 0.92);
+            block_color.a = 0.42;
+        }
     #endif
 
     /* DRAWBUFFERS:0 */

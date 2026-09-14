@@ -18,15 +18,66 @@ vec3 astro_soft_knee_luma(vec3 color, float knee, float ceiling) {
     return color * (limitedLuma / sourceLuma);
 }
 
+vec2 astro_hash22(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
+}
+
+float astro_voronoi(vec2 x) {
+    vec2 n = floor(x);
+    vec2 f = fract(x);
+    float m = 8.0;
+    for (int j = -1; j <= 1; j++)
+    for (int i = -1; i <= 1; i++) {
+        vec2 g = vec2(float(i), float(j));
+        vec2 o = astro_hash22(n + g);
+        vec2 r = g - f + o;
+        float d = dot(r, r);
+        if (d < m) m = d;
+    }
+    return m;
+}
+
+float astro_hash12_low(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * .1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float astro_noise_low(in vec2 x) {
+    vec2 p = floor(x);
+    vec2 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    float res = mix(
+        mix(astro_hash12_low(p), astro_hash12_low(p + vec2(1.0, 0.0)), f.x),
+        mix(astro_hash12_low(p + vec2(0.0, 1.0)), astro_hash12_low(p + vec2(1.0, 1.0)), f.x),
+        f.y
+    );
+    return res;
+}
+
+float astro_fbm_low(vec2 p) {
+    float f = 0.0;
+    float w = 0.5;
+    for (int i = 0; i < 4; i++) {
+        f += w * astro_noise_low(p);
+        p *= 2.0;
+        w *= 0.5;
+    }
+    return f;
+}
+
 vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
     if (!is_sky_pixel) return sky_color;
 
     float fovScale = gbufferProjection[1][1] * 0.5;
 
-    float sunRad = 0.05200;
-    float sunCoronaRad = 0.06600;
-    float sunInnerGlowRad = 0.13800;
-    float sunOuterGlowRad = 0.22800;
+    // A compact solar disc leaves a readable silhouette before its glare.
+    float sunRad = 0.04600;
+    float sunCoronaRad = 0.05800;
+    float sunInnerGlowRad = 0.12000;
+    float sunOuterGlowRad = 0.19500;
     // A painted fantasy moon: present enough to anchor the sky without taking
     // the enormous scale of the concept references literally.
     float moonRad = 0.06100;
@@ -41,6 +92,21 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
     float weatherVisibility = 1.0 - rainStrength;
 
     if (sunHorizonFade > 0.001) {
+        // Compare the sun to the centre viewing ray. This is a continuous
+        // gaze proxy: no state is required, and it naturally stays stable
+        // under camera movement and TAA.
+        // The camera's forward basis is authoritative here.  A reconstructed
+        // clip-space ray can drift with projection/FOV changes; -Z from the
+        // inverse model-view matrix is the actual rendered camera direction.
+        vec3 gazeWorldRay = normalize(-gbufferModelViewInverse[2].xyz);
+        #ifdef SUN_GAZE_ADAPTATION
+            float directSunGaze = smoothstep(
+                0.82, 0.975, dot(gazeWorldRay, sunWorldDir));
+        #else
+            float directSunGaze = 1.0;
+        #endif
+        float peripheralSunGaze = 1.0 - directSunGaze;
+
         // Direction-space reconstruction keeps the painted sun fixed to the
         // celestial sphere and gives it the same stable motion as the moon.
         vec4 sunViewRayH = gbufferProjectionInverse
@@ -129,13 +195,16 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
                     paintedSun.rgb / max(sunTextureLuma, 0.001),
                     vec3(0.30),
                     vec3(2.20));
+                // A real solar disc is a HDR emitter, not a painted object.
+                // Keep a little texture at the limb while the core supplies
+                // enough energy for the bloom pass to create natural glare.
                 float sunLumaFloor = mix(
-                    0.34,
-                    0.40,
+                    0.95,
+                    1.20,
                     dayToZenith);
                 float sunLumaCeiling = mix(
-                    1.03,
-                    1.10,
+                    3.60,
+                    4.80,
                     dayToZenith);
                 float paintedSunLuma = mix(
                     sunLumaFloor,
@@ -150,8 +219,8 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
                     paintedSunLuma,
                     mix(0.94, 0.90, dayToZenith));
                 float solarTextureColor = mix(
-                    0.78,
-                    0.68,
+                    0.48,
+                    0.38,
                     dayToZenith);
                 vec3 sunColor = mix(
                     vec3(paintedSunLuma),
@@ -167,6 +236,10 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
                     0.96,
                     1.04,
                     pow(sunRadialLight, 0.55));
+                // White-hot photosphere: masks the flat texture in the centre
+                // but leaves solar granulation visible at the outer limb.
+                sunColor += vec3(1.0, 0.84, 0.52)
+                    * pow(sunRadialLight, 2.2) * 1.55;
 
                 // Equal-luminance grading lets the entire solar surface accept
                 // dawn/sky colors while preserving its plasma structures.
@@ -182,24 +255,34 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
                     vec3(0.22, 0.16, 0.10));
                 sunColor = astro_soft_knee_luma(
                     sunColor,
-                    0.82,
-                    1.12);
+                    2.25,
+                    5.25);
+                // Peripheral vision blooms a bright source and loses its fine
+                // solar detail. Looking directly at it restores the textured,
+                // crisp disc without a visible switching threshold.
+                float sunPerceptualLuma = luma(sunColor);
+                sunColor = mix(
+                    vec3(sunPerceptualLuma * 1.18),
+                    sunColor,
+                    mix(0.04, 0.90, directSunGaze));
                 sunColor /= max(
-                    pow(sunSceneExposure, 0.22),
+                    pow(sunSceneExposure, 0.12),
                     0.90);
 
                 float alpha = analyticAlpha * paintedSun.a
-                    * weatherVisibility * sunHorizonFade;
+                    * weatherVisibility * sunHorizonFade
+                    * mix(0.20, 1.0, directSunGaze);
                 sky_color = mix(sky_color, sunColor, alpha);
             }
 
-            if (sunDist < sunOuterGlowRad) {
+            float gazeGlowRadius = mix(0.42000, sunOuterGlowRad, directSunGaze);
+            if (sunDist < gazeGlowRadius) {
                 float coronaGlow = 1.0
                     - smoothstep(sunRad, sunCoronaRad, sunDist);
                 float innerGlow = 1.0
                     - smoothstep(sunRad, sunInnerGlowRad, sunDist);
                 float outerGlow = 1.0
-                    - smoothstep(sunRad, sunOuterGlowRad, sunDist);
+                    - smoothstep(sunRad, gazeGlowRadius, sunDist);
                 coronaGlow *= coronaGlow;
                 innerGlow *= innerGlow;
                 outerGlow *= outerGlow;
@@ -231,15 +314,17 @@ vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {
                     sunHaloColor,
                     mix(0.28, 0.40, sunSkyPresence));
 
-                float halo = innerGlow * 0.165
-                    + outerGlow * 0.045;
-                vec3 corona = coronaColor * coronaGlow * 0.42;
+                float peripheralAureole = outerGlow * peripheralSunGaze;
+                float halo = innerGlow * 0.26
+                    + outerGlow * 0.07
+                    + peripheralAureole * 0.44;
+                vec3 corona = coronaColor * coronaGlow * 0.58;
                 float sunHaloExposureComp = max(
                     pow(sunSceneExposure, 0.30),
                     1.0);
                 sky_color += (corona + sunHaloColor * halo)
                     / sunHaloExposureComp
-                    * weatherVisibility * sunHorizonFade;
+                    * weatherVisibility * sunHorizonFade * SUN_GLARE_STRENGTH;
             }
         }
     }

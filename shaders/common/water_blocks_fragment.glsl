@@ -26,6 +26,7 @@ uniform vec3 sunPosition;
 uniform vec3 moonPosition;
 uniform float sunAngle;
 uniform int worldTime;
+uniform int worldDay;
 uniform float nightVision;
 uniform float rainStrength;
 uniform float wetness;
@@ -141,11 +142,13 @@ void main() {
             float dither = shifted_r_dither(gl_FragCoord.xy);
         #else
             float dither = r_dither(gl_FragCoord.xy);
+            // dither = 0.0;
         #endif
     #else
         float dither = 1.0;
     #endif
 
+    // vec4 block_color = texture2D(tex, texcoord);
     vec4 block_color;
     vec3 real_light;
 
@@ -208,7 +211,7 @@ void main() {
 
             real_light *= (fresnel_tex * 2.0) - 0.25;
 
-            block_color.rgb *= night_vision_lighting(real_light, nightVision) * tint_color.rgb;
+            block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125) * tint_color.rgb;
 
             block_color.rgb = water_shader(fragposition, surface_normal, block_color.rgb, sky_color_reflect, norm_reflect_water_vec, fresnel, visible_sky, dither, direct_light_color);
 
@@ -237,9 +240,17 @@ void main() {
                 water_distance_raw = 0.5;
             }
 
-            // Shared with rain puddles: shallow/deep response and all
-            // time-of-day transitions now come from one canonical palette.
-            vec3 aurora_water_color = auroraWaterBodyColor(water_distance_raw);
+            // Aurora palette: shallow teal → deep indigo
+            vec3 shallow_color = vec3(0.06, 0.18, 0.28);  // Bright aurora teal
+            vec3 deep_color = vec3(0.05, 0.04, 0.18);      // Deep indigo-violet
+
+            // Time-of-day tinting
+            vec3 day_tint = vec3(0.04, 0.15, 0.25);        // Crystal clear blue
+            vec3 sunset_tint = vec3(0.12, 0.08, 0.18);      // Warm violet-amber
+            vec3 night_tint = vec3(0.02, 0.06, 0.14);       // Deep midnight aurora
+
+            vec3 time_tint = day_blend(sunset_tint, day_tint, night_tint);
+            vec3 aurora_water_color = mix(shallow_color, deep_color, water_distance_raw) + time_tint * 0.3;
 
             #if WATER_COLOR_SOURCE == 0
                 block_color.rgb = water_texture * real_light * aurora_water_color;
@@ -294,8 +305,8 @@ void main() {
                 float foam_mask = smoothstep(foam_width, 0.0, foam_distance);
 
                 // Animated foam pattern using noise
-                vec2 foam_coord1 = worldposition.xz * 0.4 + vec2(persistentTimeSeconds * 0.03, persistentTimeSeconds * 0.02);
-                vec2 foam_coord2 = worldposition.xz * 0.7 - vec2(persistentTimeSeconds * 0.02, persistentTimeSeconds * 0.04);
+                vec2 foam_coord1 = worldposition.xz * 0.4 + vec2(frameTimeCounter * 0.03, frameTimeCounter * 0.02);
+                vec2 foam_coord2 = worldposition.xz * 0.7 - vec2(frameTimeCounter * 0.02, frameTimeCounter * 0.04);
                 float foam_noise1 = texture2D(noisetex, foam_coord1).r;
                 float foam_noise2 = texture2D(noisetex, foam_coord2).r;
                 float foam_pattern = foam_noise1 * 0.6 + foam_noise2 * 0.4;
@@ -343,9 +354,13 @@ void main() {
             (direct_light_strength * shadow_c * direct_light_color) * (1.0 - rainStrength * 0.75) +
             candle_color;
 
-        block_color.rgb *= night_vision_lighting(real_light, nightVision);
+        block_color.rgb *= mix(real_light, vec3(1.0), nightVision * .125);
 
         if(block_type > 1.5) {  // Glass
+            // Keep the transmission colour before reflections mix sky and
+            // scene colour into it. It is used for the sun-behind-window glow.
+            vec3 glass_transmission_tint = block_color.rgb / max(
+                max(block_color.r, max(block_color.g, block_color.b)), 0.001);
             float sat;
             if(block_type > 2.1 && block_type < 2.3){
                 sat = 0.5;
@@ -353,6 +368,29 @@ void main() {
                 sat = 3.0;
             }
             block_color = cristal_shader(fragposition, water_normal, saturate_v4(block_color, sat), sky_color_reflect, fresnel, visible_sky, dither, direct_light_color);
+
+            #if defined STAINED_GLASS_LIGHT && !defined NETHER && !defined THE_END
+                // Project the real sun position, rather than comparing view
+                // vectors. The latter has opposite handedness in Minecraft
+                // 26.2's translucent pass and silently missed the sun.
+                vec4 glass_sun_clip = gbufferProjection * vec4(sunPosition, 1.0);
+                if (glass_sun_clip.w > 0.0) {
+                    vec2 glass_sun_uv = glass_sun_clip.xy / glass_sun_clip.w
+                        * 0.5 + 0.5;
+                    vec2 glass_to_sun = gl_FragCoord.xy
+                        * vec2(pixel_size_x, pixel_size_y) - glass_sun_uv;
+                    glass_to_sun.x *= viewWidth / viewHeight;
+                    float glass_sun_distance2 = dot(glass_to_sun, glass_to_sun);
+                    float glass_solar_halo = exp(-glass_sun_distance2 * 1400.0);
+                    float glass_solar_core = exp(-glass_sun_distance2 * 18000.0);
+                    float window_glare = glass_solar_halo * 0.95
+                        + glass_solar_core * 4.5;
+                    block_color.rgb += glass_transmission_tint
+                        * direct_light_color * window_glare
+                        * STAINED_GLASS_RAY_STRENGTH;
+                }
+            #endif
+
             if (block_color.a < alphaTestRef) discard;
         }
     }

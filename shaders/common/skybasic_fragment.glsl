@@ -15,6 +15,8 @@
 
 uniform sampler2D gaux4;
 uniform float rainStrength;
+uniform int worldTime;
+uniform int worldDay;
 uniform mat4 gbufferProjectionInverse;
 uniform vec3 sunPosition;
 uniform vec4 lightningBoltPosition;
@@ -54,6 +56,33 @@ varying vec4 position;
 #include "/lib/downscale.glsl"
 
 #include "/lib/aurora.glsl"
+
+// Noise functions for Moon Craters (Simplex-like or FBM)
+float moon_hash12(vec2 p) {
+	vec3 p3  = fract(vec3(p.xyx) * .1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float moon_noise(in vec2 x) {
+    vec2 p = floor(x);
+    vec2 f = fract(x);
+    f = f*f*(3.0-2.0*f);
+    float res = mix(mix( moon_hash12(p), moon_hash12(p + vec2(1.0, 0.0)), f.x),
+                    mix( moon_hash12(p + vec2(0.0, 1.0)), moon_hash12(p + vec2(1.0, 1.0)), f.x), f.y);
+    return res;
+}
+
+float moon_fbm(vec2 p) {
+    float f = 0.0;
+    float w = 0.5;
+    for (int i = 0; i < 5; i++) { // 5 Octaves for detail
+        f += w * moon_noise(p);
+        p *= 2.0;
+        w *= 0.5;
+    }
+    return f;
+}
 
 // MAIN FUNCTION ------------------
 

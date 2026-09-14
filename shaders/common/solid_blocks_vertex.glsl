@@ -3,7 +3,7 @@
 #ifdef RAIN_PUDDLES
     // Iris 1.11.x discovers boolean shader options through direct #ifdef /
     // #ifndef references. Keep this direct guard so the master toggle appears.
-    #if !defined NETHER && !defined THE_END && defined GBUFFER_TERRAIN
+    #if !defined NETHER && !defined THE_END && (defined GBUFFER_TERRAIN || defined GBUFFER_TEXTURED)
         #define RAIN_SURFACE_PASS
     #endif
 #endif

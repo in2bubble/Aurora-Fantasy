@@ -1,17 +1,32 @@
-# Aurora Fantasy 5.4.2
+# ✨ Aurora Fantasy 5.5
 
-Aurora Fantasy is a fantasy shader pack for Minecraft Java Edition,
-shaped around magical skies, atmospheric lighting, and a vivid dreamlike style.
+A fantasy-themed Minecraft shader pack based on MakeUp by KDXavier.
 
-## Credits & License
+---
 
-- **Original developer GitHub:** [Javier Garduno (KDXavier)](https://github.com/javiergcim)
-- **Original shader:** [MakeUp Ultra Fast](https://modrinth.com/shader/makeup-ultra-fast-shaders)
-- **Modified shader:** [Aurora Fantasy](https://github.com/in2bubble/Aurora-Fantasy)
-- **Additional credit:** [Entokito](https://modrinth.com/user/Entokito)
-- **FXAA 3.11 implementation:** [Simon Rodriguez](http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html)
+## 🚀 What's New in 5.5
 
-Aurora Fantasy is a modified work based on MakeUp Ultra Fast.
+### 🐛 Bug Fixes & Compatibility (Minecraft 26.2)
+- **Player Underwater Visibility:** Fixed a bug where players were invisible underwater when viewed by other players in Minecraft 26.2.
+- **Distant Horizons in The End:** Fixed rendering glitches when using the Distant Horizons mod in The End dimension.
+- **Night & Rain Clarity:** Fixed visibility and brightness issues during rainy nights.
+- **Aurora Rain Fix:** Fixed a bug where the Aurora sky effect stayed visible during rain at night.
 
-This shader pack is distributed under the GNU Lesser General Public License
-version 3 (LGPL-3.0). See `LICENSE.txt` for the complete license terms.
+### 🌟 Features & Improvements
+- **Glowing Night Fireflies:** Added magical fireflies that light up the environment at night (includes an option to turn them off in settings).
+- **Redesigned Rain Puddles:** Completely remade puddle visuals with better quality and a toggle option to turn them off completely.
+- **Enhanced Rain Ambiance:** Improved rain droplets and overall atmospheric visuals during day and night rain.
+- **New Sun & Moon:** Updated sun and moon designs for a much better fantasy look.
+- **Simplified Profiles:** Streamlined graphics settings into two main profiles: **Balanced** and **Extreme**.
+- **General Tweaks:** Various performance optimizations and small bug fixes.
+
+---
+
+## 📜 Credits & Licensing
+
+- **in2bubble** — Shader modifications & updates
+- **KDXavier** — Original MakeUp shader creator
+- **Entokito** — Additional shader code (used under LGPL v3.0)
+- **Simon Rodriguez** — FXAA 3.11 algorithm implementation
+
+**License:** GNU Lesser General Public License v3.0 (LGPL v3.0)

@@ -132,7 +132,9 @@ void main() {
 
     // Special entities 3 - Water, 2 - Glass, -1 - Nether portal, ? - Other
     float is_water = step(abs(mc_Entity.x - ENTITY_WATER), 0.5);
-    float is_stained_glass = max(step(abs(mc_Entity.x - ENTITY_STAINED), 0.5), step(abs(mc_Entity.x - ENTITY_ICE), 0.5));
+    float is_stained_glass = max(max(step(abs(mc_Entity.x - ENTITY_STAINED), 0.5),
+        step(abs(mc_Entity.x - ENTITY_STAINED_LIGHT), 0.5)),
+        step(abs(mc_Entity.x - ENTITY_ICE), 0.5));
     float is_white_glass = step(abs(mc_Entity.x - ENTITY_GLASS_WHITE), 0.5);
     float is_portal = step(abs(mc_Entity.x - ENTITY_PORTAL), 0.5);
     float is_ice = step(abs(mc_Entity.x - ENTITY_ICE), 0.5);

@@ -20,3 +20,11 @@
 #else
     fog_adj = sqrt(clamp(gl_FogFragCoord / dhRenderDistance, 0.0, 1.0));
 #endif
+
+// Match regular terrain: storm haze also reaches Distant Horizons instead of
+// leaving a sharp, clear horizon behind nearby rain fog.
+#if !defined THE_END && !defined NETHER
+    float cinematic_rain_haze = smoothstep(0.08, 0.92, rainStrength);
+    fog_adj = pow(clamp(fog_adj, 0.0, 1.0),
+        mix(1.0, 0.56, cinematic_rain_haze));
+#endif

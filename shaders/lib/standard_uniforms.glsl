@@ -1,4 +1,4 @@
-/* Aurora Fantasy 5.4.2 - standard_uniforms.glsl
+/* Aurora Fantasy 5.5 - standard_uniforms.glsl
    Global standard OptiFine/Iris uniforms and version compatibility.
 */
 
@@ -10,14 +10,7 @@ uniform float viewWidth;
 uniform float viewHeight;
 uniform int frameCounter;
 uniform float frameTime;
-// Real render-time clock used by effects that must continue animating when
-// Minecraft's daylight cycle is paused.
 uniform float frameTimeCounter;
-
-// World-backed animation clock: stable across F3+R and shader reloads.
-// Minecraft advances at 20 ticks per second.
-uniform float persistentWorldTicks;
-#define persistentTimeSeconds (persistentWorldTicks * 0.05)
 
 // Minecraft 1.19+ Darkness Effect Uniforms
 #if MC_VERSION >= 11900

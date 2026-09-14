@@ -18,6 +18,8 @@ varying vec2 texcoord;
 varying float is_noshadow;
 varying vec3 worldPos;
 varying float is_water;
+varying float is_stained_glass;
+varying vec4 shadow_tint;
 
 attribute vec4 mc_Entity;
 
@@ -25,6 +27,7 @@ attribute vec4 mc_Entity;
 
 void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    shadow_tint = gl_Color;
     
     vec4 position = shadowModelViewInverse * shadowProjectionInverse * gl_ModelViewProjectionMatrix * gl_Vertex;
     gl_Position = shadowProjection * shadowModelView * position;
@@ -45,9 +48,15 @@ void main() {
 
     #ifdef COLORED_SHADOW
         is_water = 0.0;
+        is_stained_glass = 0.0;
 
         if(mc_Entity.x == ENTITY_WATER) {
             is_water = 1.0;
         }
+        if(mc_Entity.x == ENTITY_STAINED_LIGHT) {
+            is_stained_glass = 1.0;
+        }
+    #else
+        is_stained_glass = 0.0;
     #endif
 }

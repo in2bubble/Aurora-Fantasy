@@ -1,115 +1,139 @@
-/* Aurora Fantasy - Texture-driven Rain
- *
- * Minecraft already supplies a sparse, animated rain silhouette on real
- * weather geometry. Keep that spatial motion and use procedural noise only
- * to vary showers; generating the silhouette from noise makes it look like a
- * stationary screen overlay.
+/* Aurora Fantasy - Procedural Rain Streaks
+ * Dense, softly tapered rain independent of vanilla texture coverage.
  */
 #ifndef AURORA_FANTASY_RAIN
 #define AURORA_FANTASY_RAIN
 
-uniform sampler2D gtexture;
+float fantasyRainStreak(vec2 uv, float columns, float rows, float phase,
+                        float width, out float core, out float edge) {
+    columns *= RAIN_DENSITY;
+    float columnId = floor(uv.x * columns);
+    // Each falling cell owns a stable random seed.  Unlike the old phase-only
+    // hash, drops no longer brighten, widen, and repeat in lockstep.
+    float rowId = floor(uv.y * rows + phase * 1.73);
+    float variation = fract(sin(dot(vec2(columnId, rowId),
+        vec2(12.9898, 78.233))) * 43758.5453);
 
-const vec2 FANTASY_RAIN_TEXEL = vec2(1.0 / 64.0, 1.0 / 256.0);
+    // The geometry supplies the broad wind angle; this smaller local shear
+    // keeps individual drops from sharing one perfectly straight trajectory.
+    // Fall is driven primarily along Y.  A small per-drop lateral drift adds
+    // wind without making every streak slide sideways in lockstep.
+    float localX = fract(uv.x * columns
+                       + uv.y * mix(0.10, 0.22, variation)
+                       + phase * mix(0.035, 0.115, variation)) - 0.5;
+    float localY = fract(uv.y * rows + columnId * 0.381966 + phase * 1.73);
 
-float fantasyRainHash(vec2 value) {
-    return fract(sin(dot(value, vec2(127.1, 311.7))) * 43758.5453);
-}
+    float capIn = smoothstep(0.025, 0.16, localY);
+    float capOutStart = mix(0.38, 0.58, variation);
+    float capOut = 1.0 - smoothstep(capOutStart, capOutStart + 0.25, localY);
+    float longitudinal = capIn * capOut;
 
-float fantasyRainNoise(vec2 value) {
-    vec2 cell = floor(value);
-    vec2 local = fract(value);
-    local = local * local * (3.0 - 2.0 * local);
-    float a = fantasyRainHash(cell);
-    float b = fantasyRainHash(cell + vec2(1.0, 0.0));
-    float c = fantasyRainHash(cell + vec2(0.0, 1.0));
-    float d = fantasyRainHash(cell + vec2(1.0, 1.0));
-    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
-}
+    // Wide optical variance makes a few nearby drops readable while most
+    // remain fine. It deliberately avoids a field of identical thread lines.
+    // Slightly larger, but still tapered: enough presence at normal gameplay
+    // distance without turning the rain into thick screen-space threads.
+    float variedWidth = width * mix(0.40, 1.36, variation * variation);
+    float taper = mix(variedWidth * 0.38, variedWidth,
+                      smoothstep(0.02, 0.50, localY));
+    float lateral = abs(localX);
+    float body = 1.0 - smoothstep(taper * 0.38, taper, lateral);
 
-/* Filter the real 64x256 rain texture with a sub-pixel horizontal shoulder.
- * The texture's own bilinear filtering keeps thin drops stable under TAA,
- * while lightly weighted vertical samples extend the head and tail without
- * turning a drop into a wide block.
- */
-void sampleFantasyRainDrop(vec2 uv, float widthScale,
-                           out float body, out float core,
-                           out float rim) {
-    vec2 offset1 = vec2(FANTASY_RAIN_TEXEL.x * widthScale, 0.0);
-    vec2 lengthOffset = vec2(0.0, FANTASY_RAIN_TEXEL.y * 2.35);
-
-    float center = texture2D(gtexture, uv).a;
-    float endExtension = max(texture2D(gtexture, uv - lengthOffset).a,
-                             texture2D(gtexture, uv + lengthOffset).a);
-    float shoulder = max(texture2D(gtexture, uv - offset1).a,
-                         texture2D(gtexture, uv + offset1).a);
-
-    float elongated = max(center, endExtension * 0.64);
-    float expanded = max(elongated, shoulder * 0.10);
-    body = smoothstep(0.095, 0.70, expanded);
-    core = smoothstep(0.28, 0.94,
-                      max(elongated * 0.92, shoulder * 0.08));
-    rim = clamp(body - core * 0.58, 0.0, 1.0);
+    core = (1.0 - smoothstep(0.0, taper * 0.31, lateral)) * longitudinal;
+    edge = smoothstep(taper * 0.26, taper * 0.68, lateral)
+         * (1.0 - smoothstep(taper * 0.68, taper, lateral))
+         * longitudinal;
+    return body * longitudinal * mix(0.68, 1.0, variation);
 }
 
 void getFantasyRain(vec2 texUV, vec2 worldXZ, float nightAmount,
-                    float viewDistance, out float rainMask,
-                    out float coreMask, out float edgeMask) {
-    float time = persistentTimeSeconds;
+                    float viewDistance,
+                    float sourceAlpha, out float rainMask,
+                    out float coreMask, out float edgeMask,
+                    out float dropOpacityVariation) {
+    // World phase breaks the identical texture repetition between Minecraft's
+    // many weather columns while remaining stable as the camera moves.
+    float worldPhase = fract(dot(worldXZ, vec2(0.0317, 0.0473)));
+    // Weather quads are nearly stationary while the player stands still.
+    // Use a deliberately brisk shader-time phase so the falling motion remains
+    // obvious even with a perfectly still camera.
+    // This weather quad's V axis runs upward in screen motion, so a negative
+    // phase is the physical top-to-bottom falling direction.
+    float rainTime = -frameTimeCounter * 3.40;
 
-    // Two non-periodic, slowly travelling fields vary only the amount of the
-    // secondary shower. The foreground rain remains present at full strength,
-    // eliminating the visible breathing/fading cycle.
-    float broadShower = fantasyRainNoise(worldXZ * 0.012
-        + vec2(time * 0.008, time * 0.005));
-    float localShower = fantasyRainNoise(worldXZ * 0.031
-        + vec2(-time * 0.014, time * 0.011) + vec2(17.3, 41.7));
-    float showerVariation = smoothstep(0.08, 0.92,
-        broadShower * 0.74 + localShower * 0.26);
-    float steadyStrength = mix(0.97, 1.015, showerVariation);
+    float coreA;
+    float edgeA;
+    float primary = fantasyRainStreak(
+        texUV + vec2(worldPhase, worldPhase * 0.21),
+        2.0, 1.35, rainTime * 0.86 + 0.13, 0.058, coreA, edgeA);
 
-    // The game already scrolls texUV. These unequal offsets prevent the two
-    // layers from sharing a cadence and add modest wind drift in texture
-    // space. They do not lock to screen coordinates.
-    // Slower vertical UV scaling lengthens each real streak by about 11%
-    // without drawing a synthetic straight segment.
-    vec2 frontUV = vec2(texUV.x, texUV.y * 0.90);
-    frontUV += vec2(time * 0.0094, time * 0.0355);
+    float coreB;
+    float edgeB;
+    float secondary = fantasyRainStreak(
+        texUV + vec2(0.37 - worldPhase * 0.43, 0.19),
+        2.65, 2.20, rainTime * 1.12 + 0.57, 0.044,
+        coreB, edgeB);
 
-    vec2 backUV = texUV * vec2(1.13, 0.84) + vec2(0.371, 0.217);
-    backUV += vec2(time * 0.0064, time * 0.0550);
+    float coreC;
+    float edgeC;
+    float tertiary = fantasyRainStreak(
+        texUV + vec2(worldPhase * 0.28 + 0.71, 0.63 - worldPhase * 0.37),
+        3.45, 3.25, rainTime * 1.57 + 0.31, 0.030,
+        coreC, edgeC);
 
-    float frontBody;
-    float frontCore;
-    float frontRim;
-    sampleFantasyRainDrop(frontUV, 0.24,
-        frontBody, frontCore, frontRim);
+    float coreD;
+    float edgeD;
+    float fineRain = fantasyRainStreak(
+        texUV + vec2(0.16 - worldPhase * 0.67, worldPhase * 0.53 + 0.44),
+        4.60, 4.50, rainTime * 1.91 + 0.79, 0.018,
+        coreD, edgeD);
 
-    float backBody;
-    float backCore;
-    float backRim;
-    sampleFantasyRainDrop(backUV, 0.20,
-        backBody, backCore, backRim);
+    // The texture alpha is used only as a safe boundary for the weather quad.
+    // This prevents hidden parts of the quad becoming visible as squares.
+    float sourceBody = smoothstep(0.012, 0.18, sourceAlpha);
+    float secondaryWeight = mix(0.40, 0.46, nightAmount);
 
-    // Strong, readable foreground drops plus a restrained secondary shower.
-    // The secondary layer fades sooner so it cannot become a fine grey veil.
-    float backDistance = 1.0 - smoothstep(22.0, 52.0, viewDistance);
-    float backWeight = mix(0.080, 0.115, nightAmount)
-                     * mix(0.90, 1.10, showerVariation)
-                     * backDistance;
+    // Four independent layers combine heavy foreground drops, ordinary rain,
+    // thin fast streaks, and a fine distant curtain without tiled animation.
+    float shapedRain = primary * 0.82
+        + secondary * secondaryWeight
+        + tertiary * 0.34
+        + fineRain * 0.16;
+    // Give each particle a stable character. Variation is continuous, so every
+    // direction keeps rain and no large clear sector can form.
+    vec2 particleCell = floor(worldXZ * 3.70);
+    float particleSeed = fract(sin(dot(particleCell,
+        vec2(91.137, 41.719))) * 15731.743);
+    float dropSeed = fract(sin(dot(particleCell + vec2(17.0, 53.0),
+        vec2(41.371, 289.913))) * 12653.731);
 
-    rainMask = clamp(frontBody * 0.88
-                   + backBody * backWeight, 0.0, 1.0);
-    coreMask = clamp(frontCore * 0.88
-                   + backCore * backWeight * 0.70, 0.0, 1.0);
-    edgeMask = clamp(frontRim * 0.72
-                   + backRim * backWeight * 0.56, 0.0, 1.0);
+    // Keep the game's weather geometry clipped to its valid silhouette. The
+    // shader then changes only the optics per drop, avoiding UV-dependent
+    // square artifacts while retaining smooth time-based variation.
+    float smoothFallPhase = 0.92 + 0.08 * sin(
+        frameTimeCounter * mix(4.8, 7.1, dropSeed)
+        + particleSeed * 6.2831853);
+    float presenceVariation = mix(0.88, 1.0, particleSeed);
+    float shapeWeight = mix(0.90, 1.0, shapedRain);
+    rainMask = sourceBody * presenceVariation * shapeWeight;
+    coreMask = sourceBody * presenceVariation
+             * smoothstep(0.30, 0.88, sourceAlpha);
+    edgeMask = sourceBody * presenceVariation
+             * (0.20 + 0.46 * edgeA + 0.22 * edgeB + 0.10 * edgeC);
 
+    // Controlled particle-level optical variance: visible, but never a white
+    // curtain. The brighter droplets also receive a slightly wider streak.
+    dropOpacityVariation = mix(0.48, 0.98, dropSeed * dropSeed)
+                         * smoothFallPhase;
+
+    // Nearby drops carry reflective definition; distant drops dissolve softly
+    // into the rainy haze without vanishing.
     float distanceFade = mix(1.0, 0.68,
-        smoothstep(18.0, 62.0, viewDistance));
-    rainMask *= distanceFade * steadyStrength;
-    coreMask *= distanceFade * steadyStrength;
-    edgeMask *= distanceFade * steadyStrength;
+        smoothstep(12.0, 58.0, viewDistance));
+    rainMask *= distanceFade;
+    coreMask *= distanceFade;
+    edgeMask *= distanceFade;
+    dropOpacityVariation *= mix(0.78, 1.0,
+        1.0 - smoothstep(8.0, 52.0, viewDistance));
 }
 
 #endif

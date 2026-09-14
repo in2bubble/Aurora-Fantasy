@@ -62,3 +62,12 @@
     
     fog_adj = sqrt(clamp(gl_FogFragCoord / sight, 0.0, 1.0));
 #endif
+
+// Rain carries a broad, low-contrast atmospheric veil. Applying it after the
+// biome/day calculation preserves the local fog palette while making distant
+// scenery dissolve progressively during a storm.
+#if !defined THE_END && !defined NETHER
+    float cinematic_rain_haze = smoothstep(0.08, 0.92, rainStrength);
+    fog_adj = pow(clamp(fog_adj, 0.0, 1.0),
+        mix(1.0, 0.56, cinematic_rain_haze));
+#endif

@@ -1,4 +1,4 @@
-# Aurora Fantasy 5.4.2 - English
+# Aurora Fantasy 5.5 - English
 
 # ═══════════════════════════════════════════
 #  Profiles
@@ -83,6 +83,17 @@ suffix.SHADOW_SAMPLES= taps
 
 option.COLORED_SHADOW=Colored Shadows
 option.COLORED_SHADOW.comment=Shadows through stained glass and ice get tinted.
+
+option.STAINED_GLASS_LIGHT=Stained Glass Light
+option.STAINED_GLASS_LIGHT.comment=Projects the colour of stained glass onto lit surfaces and volumetric light shafts. Requires Colored Shadows and Volumetric Light.
+
+option.STAINED_GLASS_LIGHT_STRENGTH=Stained Glass Surface Light
+option.STAINED_GLASS_LIGHT_STRENGTH.comment=Strength of the coloured sunlight projected on floors and walls.
+suffix.STAINED_GLASS_LIGHT_STRENGTH=x
+
+option.STAINED_GLASS_RAY_STRENGTH=Stained Glass Light Rays
+option.STAINED_GLASS_RAY_STRENGTH.comment=Strength of coloured volumetric shafts passing through stained glass.
+suffix.STAINED_GLASS_RAY_STRENGTH=x
 
 option.sunPathRotation=Sun Angle
 suffix.sunPathRotation=°
@@ -435,9 +446,6 @@ option.WATER_COLOR_G=Water G
 
 option.WEATHER_OPACITY=Rain Opacity
 suffix.WEATHER_OPACITY=x
-
-option.CAMERA_RAIN_DROPS=Camera Rain Droplets
-option.CAMERA_RAIN_DROPS.comment=Show sliding rain beads and flowing water trails on the player's camera lens. Disable this without affecting world rain or puddles.
 
 # ═══════════════════════════════════════════
 #  Effects
