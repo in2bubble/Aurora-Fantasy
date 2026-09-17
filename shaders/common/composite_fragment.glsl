@@ -482,7 +482,11 @@ void main() {
                         vec2(0.001), vec2(0.999));
                     float sampleDepth = texture2D(depthtex0, sampleUV).r;
                     #if defined DISTANT_RENDER_MOD && defined DISTANT_HORIZONS
-                        sampleDepth = max(sampleDepth, texture2D(dhDepthTex0, sampleUV).r);
+                        // Both depth buffers use 0 for near geometry and 1 for
+                        // sky/far geometry.  Sun visibility must use the nearest
+                        // surface: a nearby cave roof has to occlude a distant
+                        // DH sky pixel rather than letting its depth leak through.
+                        sampleDepth = min(sampleDepth, texture2D(dhDepthTex0, sampleUV).r);
                     #endif
                     sunVisibility += smoothstep(0.9985, 0.99995, sampleDepth)
                         * kernelWeight;
