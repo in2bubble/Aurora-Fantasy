@@ -2,7 +2,11 @@
 
 #if MC_VERSION < 11604
     const bool colortex0Clear = false;
-    const bool colortex1Clear = false;
+    #ifdef AURORA_LEGACY_OPTIFINE
+        const bool colortex1Clear = true;
+    #else
+        const bool colortex1Clear = false;
+    #endif
     const bool colortex2Clear = false;
     const bool colortex3Clear = false;
     const bool gaux1Clear = false;

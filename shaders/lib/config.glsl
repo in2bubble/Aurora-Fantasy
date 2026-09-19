@@ -7,6 +7,14 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 #extension GL_EXT_gpu_shader4 : enable
 #extension GL_ARB_gpu_shader5 : enable
 
+// Main texture atlas sampler compatibility (OptiFine 1.20+ / 1.21 requires gtexture)
+#define tex gtexture
+
+// Iris has its own sky state handling, including on older Minecraft versions.
+#if MC_VERSION < 12100 && !defined IS_IRIS && !defined IRIS
+    #define AURORA_LEGACY_OPTIFINE
+#endif
+
 // Useful material properties.
 
 // Plants, Leaves
@@ -17,6 +25,8 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 #define ENTITY_SMALLENTS_NW 10032.0  // No waveable small ents
 #define ENTITY_LEAVES       10018.0  // Leaves
 #define ENTITY_WHITE_LEAVES 10019.0  // White Leaves
+#define ENTITY_POPLAR_LEAVES 10033.0 // Minecraft 26.3 autumn poplar leaves
+#define ENTITY_NEW_TREE_SAPLINGS 10034.0 // Minecraft 26.3 tree saplings
 #define ENTITY_VINES        10106.0  // Vines
 #define ENTITY_FANTASY_FLOWERS 10510.0
 #define ENTITY_FLOWERING_LEAVES 10511.0
@@ -77,6 +87,8 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 #define STYLE 1 // [1 2]
 
 // Options
+#define SIMPLE_SKY 0 // [0 1] Keep the cinematic Aurora sky enabled by default.
+#define WATER_COLOR_SOURCE 0 // [0 1] Vanilla biome water color or the selected water palette.
 #define TEXTURE_QUALITY 1 // [1 2] Resolution tier for Aurora's cloud and water detail textures.
 #define AUX_BUFFER_QUALITY 1 // [1 2] Resolution tier for smooth auxiliary atmosphere buffers.
 #define PROFILE_QUALITY 1 // [1 2] Internal profile tier: 1 keeps every effect with temporally stable balanced sampling; 2 preserves the original Extreme path.
@@ -110,7 +122,9 @@ in2bubble - Based on MakeUp by KDXavier - GNU Lesser General Public License v3.0
 #define FOG_ACTIVE // Toggle fog
 #define NETHER_FOG_DISTANCE 0 // [0 1] // Sets Nether fog distance to half of the render distance (maximum of 96 blocks)
 #define ACERCADE 4 // [1 2 3 4 5 6 7]
-#define WAVING 1 // [0 1] Makes objects like leaves or grass move in the wind (Low perfomance cost)
+#define WAVING 1 // [0 1] Master switch for foliage and plant waving animation
+#define WAVING_GRASS 1 // [0 1] Enable waving for ground grass, plants, and flowers
+#define WAVING_LEAVES 1 // [0 1] Enable waving for tree leaves and foliage
 #define TINTED_WATER 1  // [0 1] Use the resource pack color for water.
 #define AO 1  // [0 1] Turn on for enhanced ambient occlusion (Medium performance cost).
 #define VANILLA_AO 1 // [0 1] Turn on for vanilla ambient occlusion (Faster than main AO).

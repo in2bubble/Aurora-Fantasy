@@ -29,10 +29,10 @@ void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     shadow_tint = gl_Color;
     
-    vec4 position = shadowModelViewInverse * shadowProjectionInverse * gl_ModelViewProjectionMatrix * gl_Vertex;
+    vec4 position = shadowModelViewInverse * shadowProjectionInverse * (gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex));
     gl_Position = shadowProjection * shadowModelView * position;
 
-    vec4 positions = shadowModelViewInverse * shadowProjectionInverse * ftransform();
+    vec4 positions = shadowModelViewInverse * shadowProjectionInverse * (gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex));
     worldPos = positions.xyz;
 
     float dist = length(gl_Position.xy);

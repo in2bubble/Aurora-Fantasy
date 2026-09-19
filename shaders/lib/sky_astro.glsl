@@ -3,8 +3,15 @@ Draws the screen-space sun and moon. Include before volumetric clouds so clouds
 can occlude the discs and halos naturally.
 */
 
+#if defined IS_IRIS || defined IRIS
 uniform sampler2D auroraMoonTexture;
 uniform sampler2D auroraSunTexture;
+#else
+uniform sampler2D colortex0;
+uniform sampler2D colortex2;
+#define auroraMoonTexture colortex0
+#define auroraSunTexture colortex2
+#endif
 
 // Roll bright painted texels into a controlled HDR shoulder. Limiting luminance
 // instead of individual RGB channels keeps the original texture hue and local
@@ -16,56 +23,6 @@ vec3 astro_soft_knee_luma(vec3 color, float knee, float ceiling) {
     float limitedLuma = min(sourceLuma, knee)
         + shoulderWidth * (1.0 - exp(-shoulder / shoulderWidth));
     return color * (limitedLuma / sourceLuma);
-}
-
-vec2 astro_hash22(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.xx + p3.yz) * p3.zy);
-}
-
-float astro_voronoi(vec2 x) {
-    vec2 n = floor(x);
-    vec2 f = fract(x);
-    float m = 8.0;
-    for (int j = -1; j <= 1; j++)
-    for (int i = -1; i <= 1; i++) {
-        vec2 g = vec2(float(i), float(j));
-        vec2 o = astro_hash22(n + g);
-        vec2 r = g - f + o;
-        float d = dot(r, r);
-        if (d < m) m = d;
-    }
-    return m;
-}
-
-float astro_hash12_low(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * .1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-float astro_noise_low(in vec2 x) {
-    vec2 p = floor(x);
-    vec2 f = fract(x);
-    f = f * f * (3.0 - 2.0 * f);
-    float res = mix(
-        mix(astro_hash12_low(p), astro_hash12_low(p + vec2(1.0, 0.0)), f.x),
-        mix(astro_hash12_low(p + vec2(0.0, 1.0)), astro_hash12_low(p + vec2(1.0, 1.0)), f.x),
-        f.y
-    );
-    return res;
-}
-
-float astro_fbm_low(vec2 p) {
-    float f = 0.0;
-    float w = 0.5;
-    for (int i = 0; i < 4; i++) {
-        f += w * astro_noise_low(p);
-        p *= 2.0;
-        w *= 0.5;
-    }
-    return f;
 }
 
 vec3 draw_sky_astro(vec3 sky_color, vec2 uv, bool is_sky_pixel) {

@@ -4,6 +4,10 @@ Volumetric light - MakeUp implementation
 
 #if VOL_LIGHT == 2
 
+    float vol_shadow_sample(sampler2DShadow s, vec3 c) {
+        return texture(s, c);
+    }
+
     #define diagonal3(m) vec3((m)[0].x, (m)[1].y, m[2].z)
 
     vec3 get_volumetric_pos(vec3 shadow_pos) {
@@ -44,7 +48,7 @@ Volumetric light - MakeUp implementation
             pos = modeli_times_projectioni * (vec4(view_pos, 1.0) * 2.0 - 1.0);
             view_pos = (pos.xyz /= pos.w).xyz;
             shadow_pos = get_volumetric_pos(view_pos);
-            light += shadow2D(shadowtex1, shadow_pos).r;
+            light += vol_shadow_sample(shadowtex1, shadow_pos);
         }
 
         light /= GODRAY_STEPS;
@@ -97,9 +101,9 @@ Volumetric light - MakeUp implementation
 
                 shadow_pos = get_volumetric_pos(view_pos);
 
-                shadow_detector = shadow2D(shadowtex0, vec3(shadow_pos.xy, shadow_pos.z - 0.001)).r;
+                shadow_detector = vol_shadow_sample(shadowtex0, vec3(shadow_pos.xy, shadow_pos.z - 0.001));
                 if (shadow_detector < 1.0) {
-                    shadow_black = shadow2D(shadowtex1, vec3(shadow_pos.xy, shadow_pos.z - 0.001)).r;
+                    shadow_black = vol_shadow_sample(shadowtex1, vec3(shadow_pos.xy, shadow_pos.z - 0.001));
                     vec4 transmission_sample = texture2D(shadowcolor0, shadow_pos.xy);
                     float transmission_chroma = max(
                         max(transmission_sample.r, transmission_sample.g),

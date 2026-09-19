@@ -3,13 +3,14 @@
  / /___/ /  / / / _/  
 /____/___/ /_/ /___/  
                       
-Aurora Fantasy 5.5.1 - current_sky_color.glsl #include "/src/current_sky_color.glsl"
+Aurora Fantasy 5.5.2 - current_sky_color.glsl #include "/src/current_sky_color.glsl"
 Sky color calculation. - Cálculo da cor do céu. */
 
 bool check = (lightningBoltPosition.w > 0.001);
 float lightning = float(check);
 
-float sun_influence = dot(nfragpos, sunPosition * 0.01);
+// Keep sky lighting independent from renderer-specific sunPosition magnitude.
+float sun_influence = dot(nfragpos, normalize(sunPosition));
 float final_sun_factor = pow(smoothstep(-1.0, 1.0, sun_influence), day_blend_float_lgcy(1.0, 1.0, 2.0));
 float final_sun_factor2 = pow(smoothstep(-1.0, 1.0, sun_influence), day_blend_float(1.5, 0.0, 10.0));
 

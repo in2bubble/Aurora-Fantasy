@@ -1,4 +1,4 @@
-# Aurora Fantasy 5.5.1 - English
+# Aurora Fantasy 5.5.2 - English
 
 # ═══════════════════════════════════════════
 #  Profiles
@@ -30,8 +30,11 @@ screen.ATMOSPHERE_SCREEN.comment=Clouds, sky colors, fog, and stars.
 screen.WATER_SCREEN=§l💧 Water & Weather
 screen.WATER_SCREEN.comment=Reflections, water, rain puddles, and weather.
 
+screen.WAVING_SCREEN=§l🌿 Vegetation
+screen.WAVING_SCREEN.comment=Wind movement for grass, plants, flowers, and tree leaves.
+
 screen.EFFECTS_SCREEN=§l✦ Effects
-screen.EFFECTS_SCREEN.comment=Enchanted firefly life, bloom, rainy-ground reflections, emissive materials, waving, DOF, motion blur, and antialiasing.
+screen.EFFECTS_SCREEN.comment=Enchanted firefly life, bloom, rainy-ground reflections, emissive materials, DOF, motion blur, and antialiasing.
 
 screen.CAMERA_SCREEN=§l📷 Camera & Colors
 screen.CAMERA_SCREEN.comment=Tonemapping, saturation, contrast, brightness, and sharpness.
@@ -308,56 +311,6 @@ suffix.FOAM_WIDTH=x
 option.RAIN_PUDDLES=Rain Ground Puddles & Reflections
 option.RAIN_PUDDLES.comment=One master switch for the complete rainy-ground system. Off removes puddles, wet-ground sheen, water animation, rain ripples, environment reflections and SSR. Rain particles remain normally visible.
 
-option.WEATHER_OPACITY=Rain Opacity
-suffix.WEATHER_OPACITY=x
-
-# ═══════════════════════════════════════════
-#  Effects
-# ═══════════════════════════════════════════
-option.BLOOM=Bloom
-option.BLOOM.comment=Glow effect around bright light sources.
-
-option.BLOOM_STRENGTH=Bloom Strength
-suffix.BLOOM_STRENGTH=x
-
-option.MATERIAL_GLOSS=Material Gloss
-option.MATERIAL_GLOSS.comment=Specular highlights on metals and polished surfaces.
-
-option.WAVING=Waving Plants
-value.WAVING.0=Off
-value.WAVING.1=On
-
-option.EMMISIVE_ORE=Glowing Ores
-option.EMMISIVE_ORE.comment=Diamond, gold, iron ores emit soft light.
-
-option.EMMISIVE_MATERIAL=Glowing Blocks
-option.EMMISIVE_MATERIAL.comment=Enchanting table, repeater, etc. emit light.
-
-option.WIND_FORCE=Wind Force
-suffix.WIND_FORCE=x
-
-option.DOF=Depth of Field
-option.DOF.comment=Enable cinematic focus blur.
-option.DOF_STRENGTH=Depth of Field Strength
-option.DOF_STRENGTH.comment=Controls the blur radius while Depth of Field is enabled.
-suffix.DOF_STRENGTH=%
-value.DOF_STRENGTH.0=Off
-
-option.MOTION_BLUR=Motion Blur
-
-option.MOTION_BLUR_STRENGTH=Blur Strength
-suffix.MOTION_BLUR_STRENGTH=x
-
-option.AA_TYPE=Anti-Aliasing
-option.AA_TYPE.comment=Smart TAA recommended. TAA alone can look blurry.
-value.AA_TYPE.0=Off
-value.AA_TYPE.1=Denoise
-value.AA_TYPE.2=TAA
-value.AA_TYPE.3=§bSmart TAA
-
-option.FXAA=FXAA
-option.FXAA.comment=Extra edge smoothing. Best with Smart TAA.
-
 # ═══════════════════════════════════════════
 #  Camera & Colors
 # ═══════════════════════════════════════════
@@ -459,17 +412,36 @@ suffix.BLOOM_STRENGTH=x
 option.MATERIAL_GLOSS=Material Gloss
 option.MATERIAL_GLOSS.comment=Specular highlights on metals and polished surfaces.
 
-option.WAVING=Waving Plants
-value.WAVING.0=Off
-value.WAVING.1=On
-
 option.EMMISIVE_ORE=Glowing Ores
 option.EMMISIVE_ORE.comment=Diamond, gold, iron ores emit soft light.
 
 option.EMMISIVE_MATERIAL=Glowing Blocks
 option.EMMISIVE_MATERIAL.comment=Enchanting table, repeater, etc. emit light.
 
-option.WIND_FORCE=Wind Force
+# ═══════════════════════════════════════════
+#  Vegetation
+# ═══════════════════════════════════════════
+option.WAVING=Foliage Animation
+option.WAVING.comment=Master switch for wind movement on vegetation and foliage.
+value.WAVING.0=Off
+value.WAVING.1=On
+
+option.WAVING_GRASS=Waving Grass & Plants
+option.WAVING_GRASS.comment=Enable or disable wind movement for ground grass, ferns, flowers, and ground vegetation.
+value.WAVING_GRASS.0=Off
+value.WAVING_GRASS.1=On
+
+option.WAVING_LEAVES=Waving Tree Leaves
+option.WAVING_LEAVES.comment=Enable or disable wind movement specifically for tree leaves and flowering leaves.
+value.WAVING_LEAVES.0=Off
+value.WAVING_LEAVES.1=On
+
+option.WAVING_SPEED=Waving Speed
+option.WAVING_SPEED.comment=Controls the animation speed of foliage swaying in the wind.
+suffix.WAVING_SPEED=x
+
+option.WIND_FORCE=Wind Strength
+option.WIND_FORCE.comment=Controls how strongly the wind bends and moves foliage and plants.
 suffix.WIND_FORCE=x
 
 option.DOF=Depth of Field

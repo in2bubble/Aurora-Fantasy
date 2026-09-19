@@ -2,7 +2,7 @@
 
 /* Uniforms */
 
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 uniform float far;
 uniform float blindness;
 uniform float day_moment;
@@ -32,7 +32,7 @@ uniform vec3 skyColor;
 void main() {
     if(fragment_cull()) discard;
     #if V_CLOUDS == 0 || defined UNKNOWN_DIM
-        vec4 block_color = texture2D(tex, texcoord * RENDER_SCALE) * tint_color;
+        vec4 block_color = texture2D(gtexture, texcoord * RENDER_SCALE) * tint_color;
         #if COLOR_SCHEME == 11
             block_color.rgb *= day_blend_float(1.0, 1.9, 0.25);
             block_color.rgb = saturate(block_color.rgb, day_blend_float(1.0, 0.0, 0.5));

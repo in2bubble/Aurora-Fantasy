@@ -68,7 +68,7 @@ candle_color = clamp(candle_color, vec3(0.0), vec3(4.0));
 #if defined THE_END || defined NETHER
     vec3 sun_vec = normalize(gbufferModelView * vec4(0.0, 0.89442719, 0.4472136, 0.0)).xyz;
 #else
-    vec3 sun_vec = sunPosition * 0.01;
+    vec3 sun_vec = normalize(sunPosition);
 #endif
 
 vec3 normal = gl_NormalMatrix * gl_Normal;
@@ -112,7 +112,7 @@ float omni_strength = (direct_light_strength * .125) + 1.0;
 // Direct light strength --
 #ifdef FOLIAGE_V  // This shader has foliage
     float far_direct_light_strength = clamp(direct_light_strength, 0.0, 1.0);
-    if (mc_Entity.x != ENTITY_LEAVES && mc_Entity.x != ENTITY_WHITE_LEAVES) {
+    if (mc_Entity.x != ENTITY_LEAVES && mc_Entity.x != ENTITY_WHITE_LEAVES && mc_Entity.x != ENTITY_POPLAR_LEAVES) {
         far_direct_light_strength = far_direct_light_strength * 0.5 + 0.5;
     }
     if (is_foliage > .2) {  // It's foliage, light is atenuated by angle

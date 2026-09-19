@@ -1,3 +1,22 @@
+#ifndef RGBA8
+    #define RGBA8 0
+#endif
+#ifndef RGBA16
+    #define RGBA16 1
+#endif
+#ifndef RGBA16F
+    #define RGBA16F 2
+#endif
+#ifndef RGB8
+    #define RGB8 3
+#endif
+#ifndef RG8
+    #define RG8 4
+#endif
+#ifndef R8
+    #define R8 5
+#endif
+
 #include "/lib/config.glsl"
 #include "/lib/luma.glsl"
 
@@ -6,9 +25,9 @@
 /*
 
 noisetex - Water normals
-colortex0 - Unused
+colortex0 - Unused / Moon texture on OptiFine
 colortex1 - Antialiasing auxiliar
-colortex2 - Unused
+colortex2 - Unused / Sun texture on OptiFine
 colortex3 - TAA Averages history
 gaux1 - Screen-Space-Reflection / Bloom auxiliar
 gaux2 - Clouds texture natural and vanilla
@@ -16,7 +35,8 @@ gaux3 - Exposure auxiliar
 gaux4 - Fog auxiliar
 
 const int noisetexFormat = RG8;
-const int colortex0Format = R8;
+const int colortex0Format = RGBA8;
+const int colortex2Format = RGBA8;
 */
 /*
 const int colortex1Format = RGBA16;
@@ -36,7 +56,12 @@ const int shadowcolor0Format = RGBA8;
 
 // Buffers clear
 const bool colortex0Clear = false;
-const bool colortex1Clear = false;
+#ifdef AURORA_LEGACY_OPTIFINE
+    // Scene color must start fresh; temporal history belongs to colortex3.
+    const bool colortex1Clear = true;
+#else
+    const bool colortex1Clear = false;
+#endif
 const bool colortex2Clear = false;
 const bool colortex3Clear = false;
 const bool gaux1Clear = false;

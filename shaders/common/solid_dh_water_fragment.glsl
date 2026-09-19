@@ -12,7 +12,7 @@
 
 /* Uniforms */
 
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 uniform float near;
 uniform float far;
 uniform sampler2D gaux1;

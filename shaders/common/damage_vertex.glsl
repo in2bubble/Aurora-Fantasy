@@ -19,7 +19,7 @@ varying float var_fog_frag_coord;
 
 void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
-    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+    gl_Position = gl_ProjectionMatrix * (gl_ModelViewMatrix * gl_Vertex);
     resize_vertex(gl_Position);
     
     vec4 homopos = gbufferProjectionInverse * vec4(gl_Position.xyz / gl_Position.w, 1.0);

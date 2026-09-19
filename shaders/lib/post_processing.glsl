@@ -3,7 +3,7 @@
  / /___/ /  / / / _/
 /____/___/ /_/ /___/
 
-Aurora Fantasy 5.5.1 - post_processing.glsl #include "/lib/post_processing.glsl"
+Aurora Fantasy 5.5.2 - post_processing.glsl #include "/lib/post_processing.glsl"
 Utilities, effects and fake effects. - Utilidades, efeitos e efeitos falsos. */
 
 

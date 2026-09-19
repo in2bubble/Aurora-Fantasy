@@ -147,7 +147,14 @@ void main() {
         #endif
 
         #if MC_VERSION >= 11604
-            block_color.a = star_data.a;
+            #ifdef AURORA_LEGACY_OPTIFINE
+                // This fragment already contains the background, stars and
+                // aurora. Replace the previous color instead of compositing
+                // it as a zero-alpha overlay over a persistent scene buffer.
+                block_color.a = 1.0;
+            #else
+                block_color.a = star_data.a;
+            #endif
         #endif
     #endif
     

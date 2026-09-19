@@ -209,9 +209,11 @@ void main() {
             float fantasy_flower = step(10509.5, eid) * step(eid, 10510.5);
             float fantasy_blossom_leaves = step(10510.5, eid) * step(eid, 10511.5);
             float fantasy_leaves = step(10017.5, eid) * step(eid, 10018.5);
+            float fantasy_poplar_leaves = step(10032.5, eid) * step(eid, 10033.5);
             float fantasy_grass_flora = step(10030.5, eid) * step(eid, 10031.5);
             fantasy_plant_f = fantasy_flower
                 + fantasy_leaves * 2.0
+                + fantasy_poplar_leaves * 2.0
                 + fantasy_blossom_leaves * 3.0
                 + fantasy_grass_flora * 4.0;
         #endif

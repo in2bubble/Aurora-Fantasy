@@ -29,7 +29,7 @@ candle_color = clamp(candle_color, vec3(0.0), vec3(4.0));
 #if defined THE_END || defined NETHER
     vec3 sun_vec = normalize(gbufferModelView * vec4(0.0, 0.89442719, 0.4472136, 0.0)).xyz;
 #else
-    vec3 sun_vec = sunPosition * 0.01;
+    vec3 sun_vec = normalize(sunPosition);
 #endif
 
 vec3 normal = gl_NormalMatrix * gl_Normal;

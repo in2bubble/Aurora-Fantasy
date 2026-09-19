@@ -14,7 +14,7 @@
 
 /* Uniforms */
 
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 #ifdef THE_END
     uniform vec3 cameraPosition;
     uniform mat4 gbufferModelViewInverse;

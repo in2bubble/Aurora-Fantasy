@@ -12,7 +12,7 @@
 
 /* Uniforms */
 
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 uniform float near;
 uniform float far;
 uniform sampler2D gaux1;
@@ -148,7 +148,7 @@ void main() {
         float dither = 1.0;
     #endif
 
-    // vec4 block_color = texture2D(tex, texcoord);
+    // vec4 block_color = texture2D(gtexture, texcoord);
     vec4 block_color;
     vec3 real_light;
 
@@ -188,9 +188,10 @@ void main() {
             sky_color_reflect = get_cloud(worldReflectDir, sky_color_reflect, 0.0, dither, worldposition.xyz, int(CLOUD_STEPS_AVG * 0.5), umbral, cloud_color, dark_cloud_color, 1.0);
         #endif
     #endif
+
     if(block_type > 2.9 && block_type < 3.1) {  // Water
         #ifdef VANILLA_WATER
-            block_color = texture2D(tex, texcoord);
+            block_color = texture2D(gtexture, texcoord);
             #if defined SHADOW_CASTING && !defined NETHER
                 #if defined COLORED_SHADOW
                     vec3 shadow_c = get_colored_shadow(shadow_pos, dither);
@@ -218,7 +219,7 @@ void main() {
             block_color.a = sqrt(block_color.a);
         #else
             #if WATER_TEXTURE == 1
-                block_color = texture2D(tex, texcoord);
+                block_color = texture2D(gtexture, texcoord);
                 float water_texture = luma(block_color.rgb);
             #else
                 float water_texture = 1.0;
@@ -326,7 +327,7 @@ void main() {
         #endif
 
     } else {  // Otros translúcidos
-        block_color = texture2D(tex, texcoord);
+        block_color = texture2D(gtexture, texcoord);
         float block_luma = luma(block_color.rgb);
         block_color *= tint_color;
 

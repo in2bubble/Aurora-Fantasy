@@ -2,7 +2,7 @@
 
 /* Uniforms */
 
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 uniform sampler2D noisetex;
 varying vec3 worldPos;
 uniform vec3 cameraPosition;
@@ -47,9 +47,9 @@ void main() {
                 vec3 amplified_normal = wave_normal * 4.0 * CAUSTICS_INTENSITY;
                 block_color.rgb = clamp(v3_luma(amplified_normal), vec3(0.0), vec3(1.0)); 
 
-                block_color.a = texture2D(tex, texcoord).a * 0.05 * clamp(amplified_normal.z, 0.0, 1.0) * (CAUSTICS_INTENSITY * 0.5 + 0.5);
+                block_color.a = texture2D(gtexture, texcoord).a * 0.05 * clamp(amplified_normal.z, 0.0, 1.0) * (CAUSTICS_INTENSITY * 0.5 + 0.5);
             #else
-                block_color = texture2D(tex, texcoord);
+                block_color = texture2D(gtexture, texcoord);
                 block_color.rgb *= pow(block_color.rgb, vec3(3.0));
                 if (block_color.r < 0.325) {
                     block_color.a *= 0.6;
@@ -58,10 +58,10 @@ void main() {
             #endif
             
         } else {
-            block_color = texture2D(tex, texcoord);
+            block_color = texture2D(gtexture, texcoord);
         }
     #else
-        block_color = texture2D(tex, texcoord);
+        block_color = texture2D(gtexture, texcoord);
     #endif
 
     #if defined COLORED_SHADOW && defined STAINED_GLASS_LIGHT

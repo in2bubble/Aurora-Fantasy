@@ -1,5 +1,12 @@
 #include "/lib/config.glsl"
 
+/*
+const int colortex0Format = RGBA8;
+const int colortex2Format = RGBA8;
+*/
+const bool colortex0Clear = false;
+const bool colortex2Clear = false;
+
 /* Color utils */
 
 #ifdef THE_END
@@ -143,7 +150,8 @@ void main() {
 
             vec4 fragpos = gbufferProjectionInverse * (vec4(gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y), gl_FragCoord.z, 1.0) * 2.0 - 1.0);
             vec3 nfragpos = normalize(fragpos.xyz);
-            float sun_influence = dot(nfragpos, sunPosition * 0.01);
+            // Sky influence uses a direction rather than a position.
+            float sun_influence = dot(nfragpos, normalize(sunPosition));
             float normalized_sun_influence = smoothstep(-1.0, 1.0, sun_influence);
             float final_sun_factor = pow(normalized_sun_influence, day_blend_float(1.0, 0.0, 1.5));
 

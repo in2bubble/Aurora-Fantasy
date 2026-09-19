@@ -1,3 +1,7 @@
+float shadow_sample(sampler2DShadow s, vec3 c) {
+    return texture(s, c);
+}
+
 // Profile-scaled rotated disk sampling. The per-frame rotation works with TAA
 // to smooth the penumbra while SHADOW_SAMPLES controls the actual quality cost.
 vec2 aurora_shadow_disk_offset(int sample_index, float dither, float radius) {
@@ -11,7 +15,7 @@ vec2 aurora_shadow_disk_offset(int sample_index, float dither, float radius) {
 
 vec3 get_shadow(vec3 the_shadow_pos, float dither) {
     #if SHADOW_TYPE == 0
-        return vec3(shadow2D(shadowtex1, the_shadow_pos).r);
+        return vec3(shadow_sample(shadowtex1, the_shadow_pos));
     #else
         float shadow_dist = length(the_shadow_pos.xy - 0.5) * 2.0;
         float adaptive_blur = SHADOW_BLUR * (1.0 + shadow_dist * 1.5);
@@ -20,10 +24,10 @@ vec3 get_shadow(vec3 the_shadow_pos, float dither) {
 
         for (int i = 0; i < SHADOW_SAMPLES; i++) {
             vec2 offset = aurora_shadow_disk_offset(i, dither, adaptive_blur);
-            shadow_sum += shadow2D(
+            shadow_sum += shadow_sample(
                 shadowtex1,
                 vec3(the_shadow_pos.xy + offset, the_shadow_pos.z - z_bias)
-            ).r;
+            );
         }
 
         return vec3(shadow_sum / float(SHADOW_SAMPLES));
@@ -33,8 +37,8 @@ vec3 get_shadow(vec3 the_shadow_pos, float dither) {
 #if defined COLORED_SHADOW
     vec3 get_colored_shadow(vec3 the_shadow_pos, float dither) {
         #if SHADOW_TYPE == 0
-            float shadow_detector = shadow2D(shadowtex0, the_shadow_pos).r;
-            float shadow_black = shadow2D(shadowtex1, the_shadow_pos).r;
+            float shadow_detector = shadow_sample(shadowtex0, the_shadow_pos);
+            float shadow_black = shadow_sample(shadowtex1, the_shadow_pos);
 
             vec3 final_color = vec3(1.0);
             vec4 colored_tex = texture2D(shadowcolor0, the_shadow_pos.xy);
@@ -99,8 +103,8 @@ vec3 get_shadow(vec3 the_shadow_pos, float dither) {
                     the_shadow_pos.xy + offset,
                     the_shadow_pos.z - z_bias
                 );
-                float detector = shadow2D(shadowtex0, sample_pos).r;
-                float black = shadow2D(shadowtex1, sample_pos).r;
+                float detector = shadow_sample(shadowtex0, sample_pos);
+                float black = shadow_sample(shadowtex1, sample_pos);
                 vec4 color_sample = texture2D(
                     shadowcolor0,
                     the_shadow_pos.xy + offset

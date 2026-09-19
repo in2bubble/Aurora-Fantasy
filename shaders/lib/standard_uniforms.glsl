@@ -1,4 +1,4 @@
-/* Aurora Fantasy 5.5.1 - standard_uniforms.glsl
+/* Aurora Fantasy 5.5.2 - standard_uniforms.glsl
    Global standard OptiFine/Iris uniforms and version compatibility.
 */
 

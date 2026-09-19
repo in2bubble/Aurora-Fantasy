@@ -21,7 +21,7 @@
 /* Uniforms */
 
 uniform float far;
-uniform sampler2D tex;
+uniform sampler2D gtexture;
 uniform int isEyeInWater;
 uniform float nightVision;
 uniform float rainStrength;
@@ -178,7 +178,7 @@ void main() {
     // be dotted with sunPosition which is view space. Use gbufferProjectionInverse instead.
     vec4 fragpos = gbufferProjectionInverse * (vec4(gl_FragCoord.xy * vec2(pixel_size_x, pixel_size_y) / RENDER_SCALE, gl_FragCoord.z, 1.0) * 2.0 - 1.0);
     vec3 nfragpos = normalize(fragpos.xyz);
-    float sun_influence = dot(nfragpos, sunPosition * 0.01);
+    float sun_influence = dot(nfragpos, normalize(sunPosition));
     float final_sun_factor = pow(smoothstep(-1.0, 1.0, sun_influence), day_blend_float(1.0, 1.0, 1.75));
     float final_sun_factor2 = pow(smoothstep(-1.0, 1.0, sun_influence), day_blend_float(1.5, 0.0, 10.0));
 
@@ -202,7 +202,7 @@ void main() {
             return;
         }
     #endif
-    vec4 block_color = texture2D(tex, texcoord);
+    vec4 block_color = texture2D(gtexture, texcoord);
     
     vec4 pure_block_color = block_color;
     block_color *= tint_color;

@@ -57,6 +57,7 @@ varying vec4 position;
 
 void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+    // Older OptiFine releases require the legacy combined transform for sky geometry.
     gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     resize_vertex(gl_Position);
 

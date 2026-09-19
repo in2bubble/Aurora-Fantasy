@@ -73,6 +73,7 @@ void main() {
     #endif
 
 
+    // Older OptiFine releases require the legacy combined transform for sky geometry.
     gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
     resize_vertex(gl_Position);
 
